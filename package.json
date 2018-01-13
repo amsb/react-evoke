@@ -1,6 +1,6 @@
 {
   "name": "react-synaptic",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "Alexander M. Sauer-Budge",
   "license": "MIT",
   "repository": {
@@ -30,6 +30,7 @@
   },
   "scripts": {
     "build": "NODE_ENV=production rollup -c",
+    "prepublish": "npm run build",
     "dev": "rollup -c -w",
     "test": "node test/test.js",
     "pretest": "npm run build"
