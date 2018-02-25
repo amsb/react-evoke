@@ -2,8 +2,33 @@ import React from "react";
 import PropTypes from "prop-types";
 
 const createContext = React.createContext;
-  // ? React.createContext
-  // : require("react-broadcast").createContext;
+// ? React.createContext
+// : require("react-broadcast").createContext;
+
+const Connected = ({ children, ...props }) => children(props) 
+
+class Invoke extends React.Component {
+  static propTypes = {
+    function: PropTypes.func.isRequired,
+    payload: PropTypes.object,
+    when: PropTypes.oneOfType([PropTypes.func, PropTypes.bool])
+  };
+
+  componentDidMount = () => {
+    if (
+      this.props.function &&
+      (this.props.when === undefined ||
+        ((typeof this.props.when === "function" && this.props.when()) ||
+          this.props.when))
+    ) {
+      this.props.function(this.props.payload); // async
+    }
+  };
+
+  render() {
+    return this.props.children || null;
+  }
+}
 
 export const createStore = () => {
   const StoreContext = createContext({ state: {}, actions: {} });
@@ -71,7 +96,6 @@ export const createStore = () => {
     render() {
       return (
         <StoreContext.Provider value={this.state}>
-          <pre>{JSON.stringify(this.state, null, 2)}</pre>
           {this.props.children}
         </StoreContext.Provider>
       );
@@ -88,33 +112,12 @@ export const createStore = () => {
       return (
         <StoreContext.Consumer>
           {({ state, actions }) =>
-            this.props.children(this.props.select(state, actions))
+            <Connected {...this.props.select(state, actions)}>
+              {this.props.children}
+            </Connected>
           }
         </StoreContext.Consumer>
       );
-    }
-  }
-
-  class Invoke extends React.Component {
-    static propTypes = {
-      function: PropTypes.func.isRequired,
-      payload: PropTypes.object,
-      when: PropTypes.oneOfType([PropTypes.func, PropTypes.bool])
-    };
-
-    componentDidMount = () => {
-      if (
-        this.props.function &&
-        (this.props.when === undefined ||
-          ((typeof this.props.when === "function" && this.props.when()) ||
-            this.props.when))
-      ) {
-        this.props.function(this.props.payload); // async
-      }
-    };
-
-    render() {
-      return this.props.children;
     }
   }
 
@@ -134,7 +137,6 @@ export const createStore = () => {
               payload={this.props.payload}
               when={this.props.when}
             >
-              <pre>{JSON.stringify(state, null, 2)}</pre>
             </Invoke>
           )}
         </StoreContext.Consumer>
