@@ -1,11 +1,12 @@
 # React Synaptic
-A simple redux-inspired async state management built on setState. An experimental foray into lightweight shared state management built with components.
+A simple redux-inspired async state management built on setState and the React 16.3.0+ Context API. An experimental foray into lightweight shared state management built with components.
 
 ![logo](./logo.png)
 
+
 ## Introduction
 
-React Synaptic is an approach to shared application state management that embraces React's state and lifecycle model while providing a simple and intuitive mechanism for dispatching asynchronous state updating actions. You pass root component state down the component hierarchy using props while you asynchronously dispatch requests to update the root component state from any level in the hierarchy. Action handlers perform immutable updates on the root component state.
+React Synaptic is an approach to shared application state management that embraces React's built-in APIs while providing a simple and intuitive mechanism for dispatching **asynchronous** state updating actions.
 
 
 ## Store
@@ -16,27 +17,29 @@ The store object also provides a `meta` property for storing references to objec
 The `nutshell` example creates the following global `Store` component:
 
 ```javascript
+const { Store, Connector, Action } = createStore();
+
 ReactDOM.render(
   <Store
-    handlers={{
+    actions={{
       nextRandomComic
     }}
     initialState={{
       comic: null,
       isLoading: false
     }}
-    render={store => (
-      <App comic={store.state.comic} isLoading={store.state.isLoading} />
-    )}
-  />,
+  >
+    <App />
+  </Store>,
   document.getElementById("root")
 );
 ```
 
+
 ## Actions
 The application defines **handlers** for performing **actions** that typically involve updating the current application state. Action handlers are defined as `async` functions with the signature `(store, payload) => Promise` (defining them with `async` will automatically cause the function to return a `Promise`).
 
-An action handler can update the state of the store with the `store.update` method. The *update method takes a function* of the current state as its argument and returns the next state: `prevState => nextState`. This method simply wraps React's setState in a Promise and should return a new state object that structurally shares previous state objects where possible *but does not mutate `prevState`*.
+An action handler can update the state of the store with the `store.update` method. The *update method takes a function* of the current state as its argument and returns the next state: `(prevState) => nextState`. This method simply wraps React's setState in a Promise and should return a new state object that structurally shares previous state objects where possible *but does not mutate `prevState`*.
 
 The action handler can make asynchronous calls like fetching data from a remote server as well as dispatching other actions. The action function can also update the state mutliple times if desired.
 
@@ -66,19 +69,35 @@ async function nextRandomComic(store) {
 }
 ```
 
-## Dispatch
-Registered action handlers are executed by **dispatch**-ing an action. More than one action handler can be assigned to a single named action and all will be executed (with no control over execution order). This allows the application to be extended cooperatively with different parts of the application responding as each needs to a dispatched action. This also allows actions to be used as a mechanism for intra-application communication. For example, a failed sign-in attempt can dispatch a `handleSigninFailure` action that multiple parts of the application may respond to as needed.
+More than one action handler can be assigned to a single named action and all will be executed (with no control over execution order). This allows the application to be extended cooperatively with different parts of the application responding as each needs to a dispatched action. This enables actions to be used as a mechanism for intra-application coordination. For example, a failed sign-in attempt can dispatch a `handleSigninFailure` action that multiple parts of the application may respond to as needed.
 
-Actions can be declaratively dispatched with the `Dispatch` component or dispatchers can be created using the `Connector` component. The *nutshell* example uses both in its main component:
+Actions can be declaratively dispatched with the `Action` component:
 
 ```javascript
-const App = ({ comic, isLoading }) => (
+  <Action name="nextRandomComic" />
+```
+
+or can be invoked via `Connector` component described below.
+
+
+## Connector
+
+The shared state and the actions come together through the `Connector` component. The desired shared state and actions from the `Store` can be chosen using the `select` prop of the `Connector` component. The component follows the same function-as-child pattern as the React 16.3+ createContext API. From the *nutshell* example:
+
+```javascript
+const App = () => (
   <Connector
-    dispatchers={dispatch => ({
-      onClick: () => dispatch("nextRandomComic")
+    select={(state, actions) => ({
+      // select specific state properties
+      comic: state.comic,
+      isLoading: state.isLoading,
+      // multi-dispatch and *async* actions
+      onClick: actions.nextRandomComic
     })}
-    render={({ onClick }) => (
+  >
+    { ({ comic, isLoading, onClick }) => (
       <div>
+        <hr/>
         {isLoading ? (
           <p>Loading...</p>
         ) : comic ? (
@@ -88,16 +107,14 @@ const App = ({ comic, isLoading }) => (
             <button onClick={onClick}>Laugh Again</button>
           </div>
         ) : (
-          <Dispatch action="nextRandomComic" />
+          <Action name="nextRandomComic" />
         )}
       </div>
-    )}
-  />
+    )
+  }
+  </Connector>
 );
 ```
-
-## Side-Loading State
-Occasionally, the need to side-load state cannot be avoided. The `Connector` element provides a mechanism for doing this, but it is considered an escape hatch and not prototypical usage.
 
 ## Legal
 

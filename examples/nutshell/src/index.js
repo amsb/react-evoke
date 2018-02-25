@@ -28,7 +28,7 @@ async function nextRandomComic(store) {
   }));
 }
 
-const App = ({ comic, isLoading }) => (
+const App = () => (
   <Connector
     select={(state, actions) => ({
       // select specific state properties
