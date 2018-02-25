@@ -1,6 +1,8 @@
 import React from "react";
 import ReactDOM from "react-dom";
-import { Store, Dispatch, Connector } from "react-synaptic";
+import { createStore } from "react-synaptic";
+
+const { Store, Connector, Action } = createStore();
 
 const MAX_COMIC_NUMBER = 1941;
 
@@ -28,11 +30,17 @@ async function nextRandomComic(store) {
 
 const App = ({ comic, isLoading }) => (
   <Connector
-    dispatchers={dispatch => ({
-      onClick: () => dispatch("nextRandomComic")
+    select={(state, actions) => ({
+      // select specific state properties
+      comic: state.comic,
+      isLoading: state.isLoading,
+      // multi-dispatch and *async* actions
+      onClick: actions.nextRandomComic
     })}
-    render={({ onClick }) => (
+  >
+    { ({ comic, isLoading, onClick }) => (
       <div>
+        <hr/>
         {isLoading ? (
           <p>Loading...</p>
         ) : comic ? (
@@ -42,25 +50,25 @@ const App = ({ comic, isLoading }) => (
             <button onClick={onClick}>Laugh Again</button>
           </div>
         ) : (
-          <Dispatch action="nextRandomComic" />
+          <Action name="nextRandomComic" />
         )}
       </div>
-    )}
-  />
+    )
+  }
+  </Connector>
 );
 
 ReactDOM.render(
   <Store
-    handlers={{
+    actions={{
       nextRandomComic
     }}
     initialState={{
       comic: null,
       isLoading: false
     }}
-    render={store => (
-      <App comic={store.state.comic} isLoading={store.state.isLoading} />
-    )}
-  />,
+  >
+    <App />
+  </Store>,
   document.getElementById("root")
 );

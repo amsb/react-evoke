@@ -1,6 +1,6 @@
 {
   "name": "react-synaptic",
-  "version": "1.0.1",
+  "version": "2.0.0-alpha.1",
   "author": "Alexander M. Sauer-Budge",
   "license": "MIT",
   "repository": {
@@ -12,7 +12,7 @@
   "browser": "dist/react-synaptic.umd.js",
   "dependencies": {
     "prop-types": "^15.6.0",
-    "react": "^16.2.0"
+    "react": "^16.3.0-alpha.1"
   },
   "devDependencies": {
     "babel-plugin-external-helpers": "^6.22.0",
@@ -30,7 +30,7 @@
   },
   "scripts": {
     "build": "NODE_ENV=production rollup -c",
-    "prepublish": "npm run build",
+    "prepare": "npm run build",
     "dev": "rollup -c -w",
     "test": "node test/test.js",
     "pretest": "npm run build"
