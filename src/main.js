@@ -34,6 +34,12 @@ export const createStore = () => {
   const StoreContext = createContext({ state: {}, actions: {} });
 
   class Store extends React.Component {
+    static propTypes = {
+      actions: PropTypes.object,
+      initialState: PropTypes.object,
+      meta: PropTypes.object,
+    };
+
     constructor(props) {
       super(props);
 
@@ -94,30 +100,20 @@ export const createStore = () => {
   }
 
   class Connector extends React.Component {
+    static propTypes = {
+      select: PropTypes.func.isRequired
+    };
+
     render() {
-      if (this.props.actions) {
-        return (
-          <StoreContext.Consumer>
-            {({ state, actions, register }) => (
-              <Invoke function={register} payload={this.props.actions}>
-                <Connected {...this.props.select(state, actions)}>
-                  {this.props.children}
-                </Connected>
-              </Invoke>
-            )}
-          </StoreContext.Consumer>
-        );
-      } else {
-        return (
-          <StoreContext.Consumer>
-            {({ state, actions }) => (
-              <Connected {...this.props.select(state, actions)}>
-                {this.props.children}
-              </Connected>
-            )}
-          </StoreContext.Consumer>
-        );
-      }
+      return (
+        <StoreContext.Consumer>
+          {({ state, actions }) => (
+            <Connected {...this.props.select(state, actions)}>
+              {this.props.children}
+            </Connected>
+          )}
+        </StoreContext.Consumer>
+      );
     }
   }
 
@@ -136,11 +132,32 @@ export const createStore = () => {
               function={actions[this.props.action]}
               payload={this.props.payload}
               when={this.props.when}
-            />
+            >
+              {this.props.children || null}
+            </Invoke>
           )}
         </StoreContext.Consumer>
       );
     }
   }
-  return { Store, Connector, Dispatch };
+
+  class Register extends React.Component {
+    static propTypes = {
+      actions: PropTypes.object.isRequired
+    };
+
+    render() {
+      return (
+        <StoreContext.Consumer>
+          {({ state, actions, register }) => (
+            <Invoke function={register} payload={this.props.actions}>
+              {this.props.children || null}
+            </Invoke>
+          )}
+        </StoreContext.Consumer>
+      );
+    }
+  }
+
+  return { Store, Connector, Dispatch, Register };
 };

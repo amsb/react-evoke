@@ -71,10 +71,10 @@ async function nextRandomComic(store) {
 
 More than one action handler can be assigned to a single named action and all will be executed (with no control over execution order). This allows the application to be extended cooperatively with different parts of the application responding as each needs to a dispatched action. This enables actions to be used as a mechanism for intra-application coordination. For example, a failed sign-in attempt can dispatch a `handleSigninFailure` action that multiple parts of the application may respond to as needed.
 
-Actions can be declaratively dispatched with the `Action` component:
+Actions can be declaratively but asynchronously dispatched with the `Dispatch` component:
 
 ```javascript
-  <Action name="nextRandomComic" />
+<Dispatch action="nextRandomComic" />
 ```
 
 or can be invoked via `Connector` component described below.
@@ -107,7 +107,7 @@ const App = () => (
             <button onClick={onClick}>Laugh Again</button>
           </div>
         ) : (
-          <Action name="nextRandomComic" />
+          <Dispatch action="nextRandomComic" />
         )}
       </div>
     )
@@ -115,6 +115,25 @@ const App = () => (
   </Connector>
 );
 ```
+
+
+## Register
+
+If your application is large enough to benefit from a more modular appraoch, potentially with code splitting and dynamic imports, then you may want to maintain actions modularly as well. You can do this with the `Register` component:
+
+```javascript
+import Register from "../store.js"; // from app proot directory
+import * as actions from "./actions"; // inside feature-x directory  
+
+const FeatureX = () => (
+  <Register actions={actions}>
+    <DetailsOfFeatureX />
+  </Register>
+)
+```
+
+This component simply adds its actions to the `Store` when mounted.
+
 
 ## Legal
 
