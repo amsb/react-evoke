@@ -40,7 +40,6 @@ const App = () => (
   >
     { ({ comic, isLoading, onClick }) => (
       <div>
-        <hr/>
         {isLoading ? (
           <p>Loading...</p>
         ) : comic ? (

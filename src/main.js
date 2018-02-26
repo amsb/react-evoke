@@ -5,7 +5,7 @@ const createContext = React.createContext;
 // ? React.createContext
 // : require("react-broadcast").createContext;
 
-const Connected = ({ children, ...props }) => children(props) 
+const Connected = ({ children, ...props }) => children(props);
 
 class Invoke extends React.Component {
   static propTypes = {
@@ -37,46 +37,31 @@ export const createStore = () => {
     constructor(props) {
       super(props);
 
+      this.actions = {};
       this.meta = props.meta || {}; // meta state (api objects, etc.) -- mutable!
 
-      let actions = {};
       this.handlers = {};
       if (props.actions) {
-        actions = { ...actions, ...this._register(props.actions) };
+        this.register(props.actions);
       }
 
-      this.state = {
-        state: props.initialState || {},
-        actions: actions
-      };
-    }
-
-    _register(handlers) {
-      const newActions = {};
-      Object.entries(handlers).forEach(([action, handler]) => {
-        if (!this.handlers.hasOwnProperty(action)) {
-          // use Set to avoid double adding same handler function
-          this.handlers[action] = new Set();
-          newActions[action] = payload => this.dispatch(action, payload);
-        }
-        this.handlers[action].add(handler);
-      });
-      return newActions;
+      this.state = props.initialState || {};
     }
 
     register = handlers => {
-      this.setState({
-        state: this.state.state,
-        actions: {
-          ...this.state.actions,
-          ...this._register(handlers)
+      Object.entries(handlers).forEach(([action, handler]) => {
+        if (!this.handlers.hasOwnProperty(action)) {
+          // use Set to avoid double-adding same handler function
+          this.handlers[action] = new Set();
+          this.actions[action] = payload => this.dispatch(action, payload);
         }
+        this.handlers[action].add(handler);
       });
     };
 
     update = updater =>
       new Promise(resolve =>
-        this.setState(state => ({ state: updater(state.state) }), resolve)
+        this.setState(prevState => updater(prevState), resolve)
       );
 
     dispatch = (action, payload) => {
@@ -95,7 +80,13 @@ export const createStore = () => {
 
     render() {
       return (
-        <StoreContext.Provider value={this.state}>
+        <StoreContext.Provider
+          value={{
+            state: this.state,
+            actions: this.actions,
+            register: this.register
+          }}
+        >
           {this.props.children}
         </StoreContext.Provider>
       );
@@ -103,21 +94,30 @@ export const createStore = () => {
   }
 
   class Connector extends React.Component {
-    componentDidMount = () => {
-      // if (this.props.actions) {
-      //   this.context.store.register(this.props.handlers);
-      // }
-    };
     render() {
-      return (
-        <StoreContext.Consumer>
-          {({ state, actions }) =>
-            <Connected {...this.props.select(state, actions)}>
-              {this.props.children}
-            </Connected>
-          }
-        </StoreContext.Consumer>
-      );
+      if (this.props.actions) {
+        return (
+          <StoreContext.Consumer>
+            {({ state, actions, register }) => (
+              <Invoke function={register} payload={this.props.actions}>
+                <Connected {...this.props.select(state, actions)}>
+                  {this.props.children}
+                </Connected>
+              </Invoke>
+            )}
+          </StoreContext.Consumer>
+        );
+      } else {
+        return (
+          <StoreContext.Consumer>
+            {({ state, actions }) => (
+              <Connected {...this.props.select(state, actions)}>
+                {this.props.children}
+              </Connected>
+            )}
+          </StoreContext.Consumer>
+        );
+      }
     }
   }
 
@@ -136,8 +136,7 @@ export const createStore = () => {
               function={actions[this.props.name]}
               payload={this.props.payload}
               when={this.props.when}
-            >
-            </Invoke>
+            />
           )}
         </StoreContext.Consumer>
       );
