@@ -121,9 +121,9 @@ export const createStore = () => {
     }
   }
 
-  class Action extends React.Component {
+  class Dispatch extends React.Component {
     static propTypes = {
-      name: PropTypes.string.isRequired,
+      action: PropTypes.string.isRequired,
       payload: PropTypes.object,
       when: PropTypes.oneOfType([PropTypes.func, PropTypes.bool])
     };
@@ -133,7 +133,7 @@ export const createStore = () => {
         <StoreContext.Consumer>
           {({ state, actions }) => (
             <Invoke
-              function={actions[this.props.name]}
+              function={actions[this.props.action]}
               payload={this.props.payload}
               when={this.props.when}
             />
@@ -142,5 +142,5 @@ export const createStore = () => {
       );
     }
   }
-  return { Store, Connector, Action };
+  return { Store, Connector, Dispatch };
 };

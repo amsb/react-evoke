@@ -2,13 +2,13 @@ import React from "react";
 import ReactDOM from "react-dom";
 import { createStore } from "react-synaptic";
 
-const { Store, Connector, Action } = createStore();
+const { Store, Connector, Dispatch } = createStore();
 
 const MAX_COMIC_NUMBER = 1941;
 
 async function nextRandomComic(store) {
   // set loading state
-  store.update(prevState => ({
+  await store.update(prevState => ({
     ...prevState,
     isLoading: true,
     comic: null
@@ -21,7 +21,7 @@ async function nextRandomComic(store) {
   )).json();
 
   // update comic data
-  store.update(prevState => ({
+  await store.update(prevState => ({
     ...prevState,
     isLoading: false,
     comic: comic
@@ -49,7 +49,7 @@ const App = () => (
             <button onClick={onClick}>Laugh Again</button>
           </div>
         ) : (
-          <Action name="nextRandomComic" />
+          <Dispatch action="nextRandomComic" />
         )}
       </div>
     )

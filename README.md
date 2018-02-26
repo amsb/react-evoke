@@ -48,7 +48,7 @@ Here is the action handler created in the *nutshell* example:
 ```javascript
 async function nextRandomComic(store) {
   // set loading state
-  store.update(prevState => ({
+  await store.update(prevState => ({
     ...prevState,
     isLoading: true,
     comic: null
@@ -61,7 +61,7 @@ async function nextRandomComic(store) {
   )).json();
 
   // update comic data
-  store.update(prevState => ({
+  await store.update(prevState => ({
     ...prevState,
     isLoading: false,
     comic: comic
