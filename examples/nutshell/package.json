@@ -8,8 +8,7 @@
   "dependencies": {
     "immer": "^1.2.1",
     "react": "^16.3.0",
-    "react-dom": "^16.3.0",
-    "react-synaptic": "^2.0.0-alpha.7"
+    "react-dom": "^16.3.0"
   },
   "scripts": {
     "start": "react-scripts start",

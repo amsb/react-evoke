@@ -6,7 +6,17 @@ const createContext = React.createContext;
 // ? React.createContext
 // : require("react-broadcast").createContext;
 
-export const createStore = () => {
+const DefaultPlaceholder = ({ message }) => (
+  <b>{message ? message : "Loading..."}</b>
+);
+
+const DefaultPlaceholderError = ({ error, retry }) => (
+  <div>
+    {error.toString()} <button onClick={() => retry()}>Retry</button>
+  </div>
+);
+
+const createStore = () => {
   const StoreContext = createContext({ state: {}, actions: {} });
 
   class Store extends React.Component {
@@ -16,6 +26,8 @@ export const createStore = () => {
       defaultPlaceholder: PropTypes.func,
       defaultPlaceholderDelay: PropTypes.number,
       defaultPlaceholderError: PropTypes.func,
+      defaultPlaceholderComponent: PropTypes.func,
+      defaultPlaceholderErrorComponent: PropTypes.func,
       meta: PropTypes.object
     };
 
@@ -51,7 +63,7 @@ export const createStore = () => {
             this.setState(prevState => updater(prevState), resolve)
           )
         : new Promise(resolve =>
-            // user immer copy-on-write (mutate draft) semantics 
+            // user immer copy-on-write (mutate draft) semantics
             this.setState(produce(draftState => updater(draftState)), resolve)
           );
 
@@ -69,6 +81,24 @@ export const createStore = () => {
       }
     };
 
+    defaultPlaceholder = () => {
+      if (this.props.defaultPlaceholder === undefined) {
+        return ({ message }) => <DefaultPlaceholder message={message} />;
+      } else {
+        return this.props.defaultPlaceholder;
+      }
+    };
+
+    defaultPlaceholderError = () => {
+      if (this.props.defaultPlaceholderError === undefined) {
+        return ({ error, retry }) => (
+          <DefaultPlaceholderError error={error} retry={retry} />
+        );
+      } else {
+        return this.props.defaultPlaceholderError;
+      }
+    };
+
     render() {
       return (
         <StoreContext.Provider
@@ -78,7 +108,10 @@ export const createStore = () => {
             register: this.register,
             defaultPlaceholder: this.props.defaultPlaceholder,
             defaultPlaceholderDelay: this.props.defaultPlaceholderDelay,
-            defaultPlaceholderError: this.props.defaultPlaceholderError
+            defaultPlaceholderError: this.props.defaultPlaceholderError,
+            defaultPlaceholderComponent: this.props.defaultPlaceholderComponent,
+            defaultPlaceholderErrorComponent: this.props
+              .defaultPlaceholderErrorComponent
           }}
         >
           {this.props.children}
@@ -88,38 +121,10 @@ export const createStore = () => {
   }
 
   Store.defaultProps = {
-    defaultPlaceholderDelay: 500
+    defaultPlaceholderDelay: 250,
+    defaultPlaceholderComponent: DefaultPlaceholder,
+    defaultPlaceholderErrorComponent: DefaultPlaceholderError
   };
-
-  class Invoke extends React.Component {
-    static propTypes = {
-      function: PropTypes.func.isRequired,
-      payload: PropTypes.object,
-      when: PropTypes.oneOfType([PropTypes.func, PropTypes.bool]),
-      callback: PropTypes.func
-    };
-
-    componentDidMount = () => {
-      if (
-        this.props.function &&
-        (this.props.when === undefined ||
-          ((typeof this.props.when === "function" && this.props.when()) ||
-            this.props.when))
-      ) {
-        this.props
-          .function(this.props.payload)
-          .then(
-            () => this.props.callback !== undefined && this.props.callback()
-          );
-      } else if (this.props.callback !== undefined) {
-        this.props.callback(); // callback even when function not executed
-      }
-    };
-
-    render() {
-      return this.props.children || null;
-    }
-  }
 
   class Delayed extends React.Component {
     static propTypes = {
@@ -170,73 +175,63 @@ export const createStore = () => {
     static propTypes = {
       state: PropTypes.object,
       actions: PropTypes.object,
-      select: PropTypes.func.isRequired,
+      select: PropTypes.func,
       initializer: PropTypes.func,
-      initializeWhen: PropTypes.oneOfType([PropTypes.func, PropTypes.bool]),
+      register: PropTypes.func,
+      registerActions: PropTypes.object,
       placeholder: PropTypes.oneOfType([PropTypes.func, PropTypes.object]),
       placeholderDelay: PropTypes.number,
       placeholderError: PropTypes.func,
       defaultPlaceholder: PropTypes.func,
       defaultPlaceholderDelay: PropTypes.number,
-      defaultPlaceholderError: PropTypes.func
+      defaultPlaceholderError: PropTypes.func,
+      defaultPlaceholderComponent: PropTypes.func,
+      defaultPlaceholderErrorComponent: PropTypes.func
     };
 
     state = {
-      isInitializing: true,
-      showPlaceholder: false,
+      showPlaceholder: this.props.initializer != null,
       retryFunc: null,
       error: null
     };
 
-    mustInitialize() {
-      if (this.props.initializer) {
-        if (this.props.initializeWhen != null) {
-          return typeof this.props.initializeWhen === "function"
-            ? this.props.initializeWhen(this.props.state)
-            : !!this.props.initializeWhen;
-        } else {
-          return true;
-        }
-      } else {
-        return false;
-      }
-    }
-
     componentDidMount() {
-      if (this.state.isInitializing && this.mustInitialize()) {
+      if (this.props.registerActions != null) {
+        // synchronously add new action handlers
+        this.props.register(this.props.registerActions);
+      }
+
+      if (this.props.initializer != null) {
         this.setState(
           prevState => ({
             ...prevState,
-            retryFunc: () => this.props.initializer(this.props.actions),
-            showPlaceholder: true,
-            isInitializing: true
+            retryFunc: () =>
+              this.props.initializer(this.props.state, this.props.actions),
+            showPlaceholder: true
           }),
           () => {
             this.props
-              .initializer(this.props.actions)
+              .initializer(this.props.state, this.props.actions)
               .then(() =>
                 this.setState(prevState => ({
                   ...prevState,
                   retryFunc: null,
-                  showPlaceholder: false,
-                  isInitializing: false
+                  showPlaceholder: false
                 }))
               )
               .catch(error =>
                 this.setState(prevState => ({
                   ...prevState,
                   error,
-                  showPlaceholder: true,
-                  isInitializing: false
+                  showPlaceholder: true
                 }))
               );
           }
         );
-      } else {
+      } else if (this.props.state.showPlaceholder) {
         this.setState(prevState => ({
           ...prevState,
-          showPlaceholder: false,
-          isInitializing: false
+          showPlaceholder: false
         }));
       }
     }
@@ -294,26 +289,56 @@ export const createStore = () => {
     };
 
     renderPlaceholder() {
-      return typeof this.props.placeholder === "function"
-        ? this.props.placeholder()
-        : this.props.defaultPlaceholder
-          ? this.props.defaultPlaceholder(this.props.placeholder || {})
-          : null;
+      if (this.props.placeholder !== null) {
+        // this.props.placeholder is a function or undefined
+        if (typeof this.props.placeholder === "function") {
+          return this.props.placeholder();
+        } else if (this.props.defaultPlaceholder !== null) {
+          // this.props.defaultPlaceholder is a function or undefined
+          if (typeof this.props.defaultPlaceholder === "function") {
+            this.props.defaultPlaceholder(this.props.placeholder || {});
+          } else {
+            const placeholderProps = this.props.placeholder || {};
+            return (
+              <this.props.defaultPlaceholderComponent {...placeholderProps} />
+            );
+          }
+        } else {
+          // this.props.defaultPlaceholder is null,
+          // render nothing as this.props.placeholder is null
+          return null;
+        }
+      } else {
+        // this.props.placeholder is null, render nothing
+        return null;
+      }
     }
 
     renderPlaceholderError() {
-      if (typeof this.props.placeholderError === "function") {
-        return this.props.placeholderError(
-          this.state.error,
-          this.getRetryFunc()
-        );
-      } else if (this.props.defaultPlaceholderError) {
-        return this.props.defaultPlaceholderError(
-          this.state.error,
-          this.getRetryFunc()
-        );
+      if (this.props.placeholderError !== null) {
+        // this.props.placeholder is a function or undefined
+        if (typeof this.props.placeholderError === "function") {
+          return this.props.placeholder();
+        } else if (this.props.defaultPlaceholderError !== null) {
+          // this.props.defaultPlaceholder is a function or undefined
+          if (typeof this.props.defaultPlaceholderError === "function") {
+            this.props.defaultPlaceholder(this.props.placeholderError || {});
+          } else {
+            return (
+              <this.props.defaultPlaceholderErrorComponent
+                error={this.state.error}
+                retry={this.getRetryFunc()}
+              />
+            );
+          }
+        } else {
+          // this.props.defaultPlaceholderError is null,
+          // render nothing as placeholderError is null
+          return null;
+        }
       } else {
-        throw this.state.error;
+        // this.props.placeholderError is null, render nothing
+        return null;
       }
     }
 
@@ -333,7 +358,7 @@ export const createStore = () => {
         } else {
           return this.renderPlaceholderError();
         }
-      } else if (!this.state.isInitializing) {
+      } else if (this.props.select) {
         return (
           <Connected
             {...this.props.select(
@@ -346,16 +371,16 @@ export const createStore = () => {
           </Connected>
         );
       } else {
-        return null;
+        return this.props.children;
       }
     }
   }
 
   class Connector extends React.Component {
     static propTypes = {
-      select: PropTypes.func.isRequired,
+      select: PropTypes.func,
       initializer: PropTypes.func,
-      initializeWhen: PropTypes.oneOfType([PropTypes.func, PropTypes.bool]),
+      registerActions: PropTypes.object,
       placeholder: PropTypes.oneOfType([PropTypes.func, PropTypes.object]),
       placeholderDelay: PropTypes.number,
       placeholderError: PropTypes.func
@@ -374,49 +399,7 @@ export const createStore = () => {
     }
   }
 
-  class Dispatch extends React.Component {
-    static propTypes = {
-      action: PropTypes.string.isRequired,
-      payload: PropTypes.object,
-      when: PropTypes.oneOfType([PropTypes.func, PropTypes.bool]),
-      callback: PropTypes.func
-    };
-
-    render() {
-      return (
-        <StoreContext.Consumer>
-          {({ state, actions }) => (
-            <Invoke
-              function={actions[this.props.action]}
-              payload={this.props.payload}
-              when={this.props.when}
-              callback={this.props.callback}
-            >
-              {this.props.children || null}
-            </Invoke>
-          )}
-        </StoreContext.Consumer>
-      );
-    }
-  }
-
-  class Register extends React.Component {
-    static propTypes = {
-      actions: PropTypes.object.isRequired
-    };
-
-    render() {
-      return (
-        <StoreContext.Consumer>
-          {({ state, actions, register }) => (
-            <Invoke function={register} payload={this.props.actions}>
-              {this.props.children || null}
-            </Invoke>
-          )}
-        </StoreContext.Consumer>
-      );
-    }
-  }
-
-  return { Store, Connector, Dispatch, Register };
+  return { Store, Connector };
 };
+
+export default createStore;

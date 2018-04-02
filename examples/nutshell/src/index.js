@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom";
-import { createStore } from "react-synaptic";
+import createStore from "./react-synaptic";
 
 const { Store, Connector } = createStore();
 
@@ -34,26 +34,14 @@ async function nextRandomComic(store) {
 const App = () => (
   <Connector
     select={(state, actions, withPlaceholder) => ({
-      // select state from shared store
-      comic: state.comic,
-      // select multi-dispatch *async* actions dispatchers from store
-      // withPlaceholder causes placeholder to show until resolved
-      onClick: () => withPlaceholder(actions.nextRandomComic)
+      comic: state.comic, // select state from shared store
+      onClick: () => withPlaceholder(actions.nextRandomComic) // map actions
     })}
-
-    /* call when component mounts  */
-    initializer={actions => actions.nextRandomComic()}
-
-    /* but only if not already initialized  */
-    initializeWhen={state => !state.comic}
-
-    /* show after delay if initializer called, until resolved */
-    placeholder={{ message: "Reticulating splines..." }}
+    initializer={(state, actions) => !state.comic && actions.nextRandomComic()}
   >
     {({ comic, onClick }) => (
       <div>
-        <img src={comic.img} alt={comic.alt} />
-        <br />
+        <img src={comic.img} alt={comic.alt} /> <br />
         <button onClick={onClick}>Laugh Again</button>
       </div>
     )}
@@ -62,29 +50,9 @@ const App = () => (
 
 ReactDOM.render(
   <Store
-    /* define actions that consumers can dispatch */
     actions={{
       nextRandomComic
     }}
-
-    /* set initial data state */
-    initialState={{
-      comic: null
-    }}
-
-    /* define default placeholder render function to show when
-       consumers are waiting to be initialized */
-    defaultPlaceholder={({ message }) => (
-      <b>{message ? message : "Fetching..."}</b>
-    )}
-
-    /* define default placeholder error to show when initialization
-       encounters error */
-    defaultPlaceholderError={(error, retry) => (
-      <div>
-        {error.toString()} <button onClick={() => retry()}>Retry</button>
-      </div>
-    )}
   >
     <App />
   </Store>,
