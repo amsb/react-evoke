@@ -206,12 +206,15 @@ const createStore = () => {
           prevState => ({
             ...prevState,
             retryFunc: () =>
-              this.props.initializer(this.props.state, this.props.actions),
+              Promise.resolve(
+                this.props.initializer(this.props.state, this.props.actions)
+              ),
             showPlaceholder: true
           }),
           () => {
-            this.props
-              .initializer(this.props.state, this.props.actions)
+            Promise.resolve(
+              this.props.initializer(this.props.state, this.props.actions)
+            )
               .then(() =>
                 this.setState(prevState => ({
                   ...prevState,

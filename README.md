@@ -3,8 +3,7 @@
 
 ## Introduction
 
-Straightforward action-driven state management for straightforward apps. React Synaptic is a React 16.3+ shared application state management library in the spirit of Command Query Responsibility Segregation (CQRS), flux, redux, etc. that provides a simple framework for dispatching asynchronous state updating actions and accessing that state throughout the application. 
-
+Straightforward action-driven state management for straightforward apps. React Synaptic provides a simple framework for dispatching asynchronous state updating actions and accessing that state throughout the application. It is a small React 16.3+ library for shared application state management in the spirit of Command Query Responsibility Segregation (CQRS), flux, redux, etc.
 
 ## Store
 The `Store` *component* holds shared application **state** and a registery of **actions** for modifying that state. The `nutshell` example creates the following global `Store` component
@@ -68,7 +67,7 @@ const App = () => (
     })}
 
     /* call when component mounts  */ 
-    initializer={(state, actions) => state.comic || actions.nextRandomComic()}
+    initializer={(state, actions) => !state.comic && actions.nextRandomComic()}
   >
     { ({ comic, onClick }) => (
       <div>
