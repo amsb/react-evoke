@@ -3,7 +3,7 @@
 
 ## Introduction
 
-Straightforward action-driven state management for straightforward apps. React Synaptic provides a simple framework for dispatching asynchronous state updating actions and accessing that state throughout the application. It is a small React 16.3+ library for shared application state management in the spirit of Command Query Responsibility Segregation (CQRS), flux, redux, etc.
+Straightforward action-driven state management for straightforward apps built on the React 16.3+ [Context API](https://reactjs.org/docs/context.html) and [Immer](https://github.com/mweststrate/immer). React Synaptic provides a simple framework for dispatching asynchronous state updating actions and accessing that state throughout the application. It is a lightweight library for shared application state management in the spirit of Command Query Responsibility Segregation (CQRS), flux, redux, etc.
 
 ## Store
 The `Store` *component* holds shared application **state** and a registery of **actions** for modifying that state. The `nutshell` example creates the following global `Store` component
@@ -42,9 +42,9 @@ async function nextRandomComic(store) {
 }
 ```
 
-Action handlers update the state of the store with the `store.update` method. The update method takes a *function of the current state* as its argument. **The current state will be passed as an [Immer](https://github.com/mweststrate/immer) draft state which can be directly mutated.** Immer will process these mutations to produce an immutable update to the React component state managed by `Store`. It does not need to return anything.
+Action handlers update the state of the store with the `store.update` method. The update method takes a *function of the current state* as its argument. **The current state will be passed as an Immer draft state which can be directly mutated.** Immer will process these mutations to produce an immutable update to the React component state managed by `Store`. It does not need to return anything.
 
-Alternatively, the `store.update` method takes a second `replace` argument which can be set to `true` to use React's conventional state updating semantics. In this mode, the updater method receives current state as its argument and returns the next state: `(prevState) => nextState`. The **updater function must NOT mutate `prevState`**, but instead must return a new state object (that structurally shares previous state objects where possible).
+Alternatively, the `store.update` method takes a second argument, `replace`, which can be set to `true` to use React's conventional state updating semantics. In this mode, the updater method receives current state as its argument and returns the next state: `(prevState) => nextState`. The **updater function must NOT mutate `prevState`**, but instead must return a new state object (that structurally shares previous state objects where possible).
 
 The action handler can make asynchronous calls like fetching data from a remote server, update the state as many times as desired, or dispatch other actions.
 
@@ -83,9 +83,6 @@ const App = () => (
 ```
 
 If the component defines an `initializer`, then it is called when the component is mounted. While waiting for the `initializer` to resolve, the component will show a placeholder (after a configurable delay). If the initializer throws an error, then an error placeholder will be shown. If the `initializer` resolves without an error, then the children will be rendered.
-
-The `placeholder` can be a custom render function for this component or an argument to pass to
-the `defaultPlaceholder` defined by the `Store`.
 
 
 ## Legal

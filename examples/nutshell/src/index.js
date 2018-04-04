@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom";
-import createStore from "./react-synaptic";
+import createStore from "react-synaptic";
 
 const { Store, Connector } = createStore();
 
@@ -13,6 +13,7 @@ function sleep(ms) {
 async function nextRandomComic(store) {
   // randomly throw error
   if (Math.random() > 0.75) {
+    console.error('Throwing Error!')
     throw Error("Network Error");
   }
 
@@ -35,7 +36,7 @@ const App = () => (
   <Connector
     select={(state, actions, withPlaceholder) => ({
       comic: state.comic, // select state from shared store
-      onClick: () => withPlaceholder(actions.nextRandomComic) // map actions
+      onClick: () => withPlaceholder(actions.nextRandomComic, { message: 'Get ready to laugh again!' }) // map actions
     })}
     initializer={(state, actions) => !state.comic && actions.nextRandomComic()}
   >
