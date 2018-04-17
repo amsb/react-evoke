@@ -1,59 +1,80 @@
 import React from "react";
 import ReactDOM from "react-dom";
-import createStore from "react-synaptic";
+import createStore from "./react-synaptic";
+import quotes from "../node_modules/pragmatic-motd/data/quotes.json";
 
 const { Store, Connector } = createStore();
 
-const MAX_COMIC_NUMBER = 1941;
+const MAX_QUOTE_ID = quotes.length + 1;
 
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function nextRandomComic(store) {
-  // randomly throw error
+function fetchQuote(quoteId) {
+  console.log("Fetching...");
   if (Math.random() > 0.75) {
-    console.error('Throwing Error!')
+    // randomly throw error
+    console.error("Throwing Error!");
     throw Error("Network Error");
   }
+  return new Promise(resolve =>
+    setTimeout(() => resolve(quotes[quoteId - 1]), 1000)
+  );
+}
 
-  // fetch random comic
-  const comicNumber = Math.floor(Math.random() * Math.floor(MAX_COMIC_NUMBER));
-  const comic = await (await window.fetch(
-    "https://xkcd.now.sh/" + comicNumber
-  )).json();
-
-  // make it slow
-  await sleep(1000);
-
-  // update comic data using copy-on-write semantics (via immer)
+async function loadQuote(store, quoteId) {
+  const quote = await fetchQuote(quoteId);
   await store.update(state => {
-    state.comic = comic;
+    if (!state.quotes) {
+      state.quotes = {};
+    }
+    state.quotes[quoteId] = quote;
+  });
+}
+
+async function nextQuote(store) {
+  await store.update(state => {
+    state.quoteId = state.quoteId + 1;
+    if (state.quoteId >= MAX_QUOTE_ID) {
+      state.quoteId = 1;
+    }
   });
 }
 
 const App = () => (
-  <Connector
-    select={(state, actions, withPlaceholder) => ({
-      comic: state.comic, // select state from shared store
-      onClick: () => withPlaceholder(actions.nextRandomComic, { message: 'Get ready to laugh again!' }) // map actions
-    })}
-    initializer={(state, actions) => !state.comic && actions.nextRandomComic()}
-  >
-    {({ comic, onClick }) => (
-      <div>
-        <img src={comic.img} alt={comic.alt} /> <br />
-        <button onClick={onClick}>Laugh Again</button>
-      </div>
-    )}
-  </Connector>
+  <div>
+    <Connector
+      select={(state, actions) => ({
+        quote: state.quotes[state.quoteId],
+        onClick: () => actions.nextQuote()
+      })}
+      loadIf={state => !state.quotes[state.quoteId]}
+      loader={(state, actions) => actions.loadQuote(state.quoteId)}
+    >
+      {({ quote, onClick }) => (
+        <div>
+          <h4>{quote.title}</h4>
+          <p>{quote.description}</p>
+          <button onClick={onClick}>Next Quote</button>
+        </div>
+      )}
+    </Connector>
+  </div>
 );
 
 ReactDOM.render(
   <Store
-    actions={{
-      nextRandomComic
+    initialState={{
+      quoteId: 1,
+      quotes: {}
     }}
+    actions={{
+      loadQuote,
+      nextQuote
+    }}
+    placeholder={() => <div>Loading...</div>}
+    loadError={(error, retry) => (
+      <div>
+        <b>{error.toString()}</b> <button onClick={() => retry()}>Retry</button>
+      </div>
+    )}
   >
     <App />
   </Store>,

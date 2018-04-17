@@ -15,9 +15,20 @@ const { Store, Connector } = createStore();
 
 ReactDOM.render(
   <Store
-    actions={{
-      nextRandomComic
+    initialState={{
+      quoteId: 1,
+      quotes: {}
     }}
+    actions={{
+      loadQuote,
+      nextQuote
+    }}
+    placeholder={() => <div>Loading...</div>}
+    loadError={(error, retry) => (
+      <div>
+        <b>{error.toString()}</b> <button onClick={() => retry()}>Retry</button>
+      </div>
+    )}
   >
     <App />
   </Store>,
@@ -25,24 +36,40 @@ ReactDOM.render(
 );
 ```
 
-> The store object also provides a `meta` property for storing references to objects that are not part of the application's view state. This is a good place to stash API objects and the like for later use in executing actions.
+### `Store` Properties
+#### **actions**
+An object (or module!) declaring actions.
+
+#### **initialState** *(optional)*
+An object to use for the initial state.
+
+#### **placeholder** *(optional)*
+A render prop for the placeholder to show while connected data is loading. Can be defined or overridden for each `Connector`. If not defined, no placeholder is shown.
+
+#### **placeholderDelay** *(optional)*
+How long in milliseconds to wait while loader promise is pending before showing the placeholder. The default is `500`, set to `0` to show placeholder without delay.
+
+#### **loadError**
+A render prop for what to render when the promise returned by the loader is rejected. Can be defined or overridden for each `Connector`. If not defined (the default), the error is thrown so you can catch it in [Error Boundary](https://reactjs.org/docs/error-boundaries.html).
+
+#### **meta**
+An object to store stuff that is not part of the application's view state. This is a good place to stash API objects and the like for later use in executing actions.
+
 
 ## Actions
 The application defines handlers for performing **actions** that typically involve updating the current application state. Action handlers are defined as functions with the signature `(store, payload) => Promise` (defining them with `async` will automatically cause the function to return a `Promise`). Here is the action handler created in the *nutshell* example:
 
 ```javascript
-async function nextRandomComic(store) {
-  const comicNumber = Math.floor(Math.random() * Math.floor(MAX_COMIC_NUMBER));
-  const comic = await (await window.fetch(
-    "https://xkcd.now.sh/" + comicNumber
-  )).json();
+async function loadQuote(store, quoteId) {
+  const quote = await fetchQuote(quoteId);
   await store.update(state => {
-    state.comic = comic
+    // update immer draft state with direct mutation
+    state.quotes[quoteId] = quote;
   });
 }
 ```
 
-Action handlers update the state of the store with the `store.update` method. The update method takes a *function of the current state* as its argument. **The current state will be passed as an Immer draft state which can be directly mutated.** Immer will process these mutations to produce an immutable update to the React component state managed by `Store`. It does not need to return anything.
+Action handlers update the state of the store with the `store.update` method. The update method takes a *function of the current state* as its argument. The **updater function must MUTATE the provided state object** ([examples](https://github.com/mweststrate/immer#example-patterns)) which is an Immer draft state that will be used to produce an immutable update to the React component state managed by `Store`.
 
 Alternatively, the `store.update` method takes a second argument, `replace`, which can be set to `true` to use React's conventional state updating semantics. In this mode, the updater method receives current state as its argument and returns the next state: `(prevState) => nextState`. The **updater function must NOT mutate `prevState`**, but instead must return a new state object (that structurally shares previous state objects where possible).
 
@@ -58,6 +85,7 @@ The shared state and the actions come together through the `Connector` component
 
 ```javascript
 const App = () => (
+  
   <Connector
     select={(state, actions) => ({
       // select specific state properties from context store
@@ -65,9 +93,8 @@ const App = () => (
       // multi-dispatch *async* actions registered with store
       onClick: actions.nextRandomComic
     })}
-
-    /* call when component mounts  */ 
-    initializer={(state, actions) => !state.comic && actions.nextRandomComic()}
+    loader={(state, actions) => actions.loadQuote(state.quoteId)}
+    loadIf={state => !state.quotes[state.quoteId]}
   >
     { ({ comic, onClick }) => (
       <div>
@@ -82,7 +109,42 @@ const App = () => (
 );
 ```
 
-If the component defines an `initializer`, then it is called when the component is mounted. While waiting for the `initializer` to resolve, the component will show a placeholder (after a configurable delay). If the initializer throws an error, then an error placeholder will be shown. If the `initializer` resolves without an error, then the children will be rendered.
+### `Connector` Properties
+
+#### **select**
+A function of `(state, actions)` that returns an object to be passed to the
+function-as-child render prop.
+
+#### **loader** *(optional)*
+A function of `(state, actions)` that dispatches actions for loading data
+into the store and returns a Promise. If `loadIf` is not defined, then the
+loader function is **always** and **only** called when component mounts
+(`componentDidMount`). You can include logic in the loader to determine
+exactly what should happen.
+
+#### **loadIf** *(optional)*
+If `loadIf` is defined, then it will be evaluated on mount **and on every
+update** (`getDerivedStateFromProps`). If `loadIf` returns something truthy,
+then `loader` will be called after the component mounts or updates
+(`componentDidMount` or `componentDidUpdate`).
+
+> ADVANCED: Normally, the `loader` won't be executed again if the Connector
+updates again while loading. You can *optionally* return an identifier (something
+that isn't falsey) from `loadIf` that will cause `loader` to be executed
+again even if already loading but only if the identifer is different than
+the one being loaded. The previous promise isn't canceled, so this may
+produce unintended consquences like concurrent fetches that resolve out of
+order and currupt your application state.
+
+#### **placeholder** *(optional)*
+A render prop for the placeholder to show while connected data is loading. If
+not defined here, the default set on the `Store` provider is used, if available.
+
+#### **placeholderDelay** *(optional)*
+Override the default delay set by the `Store` provider.
+
+#### **loadError**
+A render prop for what to render when the promise returned by the loader is rejected. A default can be defined on the `Store`. If not defined anywhere, the error is thrown so you can catch it in [Error Boundary](https://reactjs.org/docs/error-boundaries.html).
 
 
 ## Legal

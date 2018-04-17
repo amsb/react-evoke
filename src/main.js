@@ -6,49 +6,89 @@ const createContext = React.createContext;
 // ? React.createContext
 // : require("react-broadcast").createContext;
 
-const DefaultPlaceholder = ({ message }) => (
-  <b>{message ? message : "Loading..."}</b>
-);
+// const REGISTER = Symbol("register");
 
-const DefaultPlaceholderError = ({ error, retry, clear }) => (
-  <div>
-    {error.toString()} <button onClick={() => retry()}>Retry</button>
-  </div>
-);
+class Delayed extends React.Component {
+  static propTypes = {
+    render: PropTypes.func.isRequired,
+    delay: PropTypes.number
+  };
+
+  constructor(props) {
+    super(props);
+    this.state = {
+      hidden: props.delay > 0
+    };
+    this._isMounted = false;
+    this._timeout = null;
+  }
+
+  componentDidMount = () => {
+    this._isMounted = true;
+    if (this.props.delay > 0 && !this.state.hidden) {
+      this.setState({ ...this.state, hidden: true });
+    }
+    this._timeout = setTimeout(() => {
+      if (this._isMounted) {
+        this.setState({ hidden: false });
+      }
+    }, this.props.delay);
+  };
+
+  componentWillUnmount() {
+    this._isMounted = false;
+  }
+
+  render() {
+    if (!this.state.hidden) {
+      return this.props.render();
+    } else {
+      return null;
+    }
+  }
+}
+
+Delayed.defaultProps = {
+  delay: 500
+};
+
+const Connected = ({ children, ...props }) => children(props);
 
 const createStore = () => {
   const StoreContext = createContext({ state: {}, actions: {} });
 
-  /**
-   * General component description.
-   */
   class Store extends React.Component {
     static propTypes = {
       actions: PropTypes.object,
       initialState: PropTypes.object,
+      // loaders: PropTypes.object, // FUTURE: automatically call when select throws
       placeholder: PropTypes.func,
       placeholderDelay: PropTypes.number,
-      placeholderError: PropTypes.func,
+      loadError: PropTypes.func,
       meta: PropTypes.object
     };
 
     constructor(props) {
       super(props);
 
+      this.handlers = {};
+
       this.state = {
         state: props.initialState || {},
-        actions: {},
-        placeholder: this.props.placeholder,
+        actions: {
+          // [REGISTER]: this.register, // FUTURE: dynamically register new actions
+          ...this.createActions(this.props.actions || {})
+        },
+        placeholder: props.placeholder,
         placeholderDelay: props.placeholderDelay,
-        placeholderError: props.placeholderError
+        loadError: props.loadError
       };
 
-      this.handlers = {};
       // meta state (api objects, etc.) -- mutable!
       this.meta = props.meta || {};
     }
 
-    register = handlers => {
+    createActions = handlers => {
       let newActions = {};
       Object.entries(handlers).forEach(([action, handler]) => {
         if (!this.handlers.hasOwnProperty(action)) {
@@ -58,10 +98,19 @@ const createStore = () => {
         }
         this.handlers[action].add(handler);
       });
-      this.setState({
-        ...this.state,
-        actions: { ...this.state.actions, ...newActions }
-      });
+      return newActions;
+    };
+
+    register = handlers => {
+      return new Promise(resolve =>
+        this.setState(
+          prevState => ({
+            ...prevState,
+            actions: { ...this.state.actions, ...this.createActions(handlers) }
+          }),
+          resolve
+        )
+      );
     };
 
     update = (updater, replace) =>
@@ -101,12 +150,6 @@ const createStore = () => {
       }
     };
 
-    componentDidMount() {
-      if (this.props.actions) {
-        this.register(this.props.actions);
-      }
-    }
-
     render() {
       return (
         <StoreContext.Provider value={this.state}>
@@ -116,208 +159,110 @@ const createStore = () => {
     }
   }
 
-  Store.defaultProps = {
-    placeholderDelay: 250,
-    placeholder: ({ message }) => <DefaultPlaceholder message={message} />,
-    placeholderError: ({ error, retry }) => (
-      <DefaultPlaceholderError error={error} retry={retry} />
-    )
-  };
-
-  class Delayed extends React.Component {
-    static propTypes = {
-      delay: PropTypes.number
-    };
-
-    constructor(props) {
-      super(props);
-      this.state = {
-        hidden: props.delay > 0
-      };
-      this._isMounted = false;
-      this._timeout = null;
-    }
-
-    componentDidMount = () => {
-      this._isMounted = true;
-      if (this.props.delay > 0 && !this.state.hidden) {
-        this.setState({ ...this.state, hidden: true });
-      }
-      this._timeout = setTimeout(() => {
-        if (this._isMounted) {
-          this.setState({ hidden: false });
-        }
-      }, this.props.delay);
-    };
-
-    componentWillUnmount() {
-      this._isMounted = false;
-    }
-
-    render() {
-      if (!this.state.hidden) {
-        return this.props.children || null;
-      } else {
-        return null;
-      }
-    }
-  }
-
-  Delayed.defaultProps = {
-    delay: 500
-  };
-
-  const Connected = ({ children, ...props }) => children(props);
-
   class Connection extends React.Component {
     static propTypes = {
       state: PropTypes.object,
       actions: PropTypes.object,
       select: PropTypes.func,
-      initializer: PropTypes.func,
+      loader: PropTypes.func,
+      loadIf: PropTypes.func,
+      loadError: PropTypes.func,
       placeholder: PropTypes.func,
-      placeholderData: PropTypes.object,
-      placeholderDelay: PropTypes.number,
-      placeholderError: PropTypes.func
+      placeholderDelay: PropTypes.number
     };
 
     state = {
-      showPlaceholder: this.props.initializer != null,
-      placeholderData: null,
-      retry: null,
+      shouldLoad: false,
+      loadingId: null,
       error: null
     };
 
-    componentDidMount() {
-      if (this.props.initializer != null) {
-        this.setState(
-          prevState => ({
+    load = () => {
+      this.setState(
+        prevState => ({ ...prevState, error: false, shouldLoad: false }),
+        () => {
+          Promise.resolve(
+            this.props.loader(this.props.state, this.props.actions)
+          ).then(
+            () =>
+              this.setState(prevState => ({
+                ...prevState,
+                loadingId: null
+              })),
+            error => {
+              if (this.props.loadError) {
+                this.setState(prevState => ({
+                  ...prevState,
+                  error: error
+                }));
+              } else {
+                throw error;
+              }
+            }
+          );
+        }
+      );
+    };
+
+    static getDerivedStateFromProps(nextProps, prevState) {
+      if (nextProps.loadIf) {
+        const loadingId = nextProps.loadIf(nextProps.state);
+        if (loadingId && loadingId !== prevState.loadingId) {
+          return {
             ...prevState,
-            retry: () =>
-              Promise.resolve(
-                this.props.initializer(this.props.state, this.props.actions)
-              ),
-            showPlaceholder: true
-          }),
-          () => {
-            Promise.resolve(
-              this.props.initializer(this.props.state, this.props.actions)
-            )
-              .then(() =>
-                this.setState(prevState => ({
-                  ...prevState,
-                  retry: null,
-                  showPlaceholder: false
-                }))
-              )
-              .catch(error =>
-                this.setState(prevState => ({
-                  ...prevState,
-                  error,
-                  showPlaceholder: true
-                }))
-              );
-          }
-        );
-      } else if (this.props.state.showPlaceholder) {
-        this.setState(prevState => ({
-          ...prevState,
-          showPlaceholder: false
-        }));
+            shouldLoad: true,
+            loadingId: loadingId
+          };
+        }
+      }
+      return null;
+    }
+
+    componentDidMount() {
+      if (this.state.shouldLoad) {
+        this.load();
       }
     }
 
-    clearError = () =>
-      new Promise(resolve =>
-        this.setState(
-          prevState => ({
-            ...prevState,
-            error: null,
-            retry: null,
-            showPlaceholder: false,
-            placeholderData: null
-          }),
-          resolve
-        )
-      );
-
-    withPlaceholder = (func, placeholderData = null) =>
-      new Promise(resolve =>
-        this.setState(
-          prevState => ({
-            ...prevState,
-            error: null,
-            retry: func,
-            showPlaceholder: true,
-            ...(placeholderData ? { placeholderData } : {})
-          }),
-          () =>
-            func()
-              .then(() =>
-                this.setState(
-                  prevState => ({
-                    ...prevState,
-                    error: null,
-                    retry: null,
-                    showPlaceholder: false,
-                    placeholderData: null
-                  }),
-                  resolve
-                )
-              )
-              .catch(error =>
-                this.setState(
-                  prevState => ({
-                    ...prevState,
-                    error,
-                    showPlaceholder: true
-                  }),
-                  resolve
-                )
-              )
-        )
-      );
+    componentDidUpdate() {
+      if (this.state.shouldLoad) {
+        this.load();
+      }
+    }
 
     render() {
-      if (this.state.showPlaceholder) {
-        if (!this.state.error) {
-          return (
-            <Delayed delay={this.props.placeholderDelay}>
-              {this.props.placeholder
-                ? this.props.placeholder(
-                    this.state.placeholderData ||
-                      this.props.placeholderData ||
-                      {}
-                  )
-                : null}
-            </Delayed>
-          );
+      /*
+      FUTURE: Replace Delayed and placeholder logic with React.Timeout
+      when React Suspense released. Throw the promise returned by
+      props.loader when props.loadIf.
+      */
+      if (this.state.error) {
+        return this.props.loadError(this.state.error, this.load)
+      } else if (this.state.loadingId) {
+        if (this.props.placeholder) {
+          if (this.props.placeholderDelay) {
+            return (
+              <Delayed
+                render={this.props.placeholder}
+                delay={this.props.placeholderDelay}
+              />
+            );
+          } else {
+            return this.props.placeholder();
+          }
         } else {
-          return this.props.placeholderError
-            ? this.props.placeholderError({
-                error: this.state.error,
-                retry: () =>
-                  this.withPlaceholder(this.state.retry)
-                    ? this.state.retry
-                    : null,
-                clear: this.clearError
-              })
-            : null;
+          return null;
         }
       } else if (this.props.select) {
         return (
           <Connected
-            {...this.props.select(
-              this.props.state,
-              this.props.actions,
-              this.withPlaceholder
-            )}
+            {...this.props.select(this.props.state, this.props.actions)}
           >
             {this.props.children}
           </Connected>
         );
       } else {
-        return this.props.children;
+        return null;
       }
     }
   }
@@ -325,11 +270,11 @@ const createStore = () => {
   class Connector extends React.Component {
     static propTypes = {
       select: PropTypes.func,
-      initializer: PropTypes.func,
+      loader: PropTypes.func,
+      loadIf: PropTypes.func,
+      loadError: PropTypes.func,
       placeholder: PropTypes.func,
-      placeholderData: PropTypes.object,
-      placeholderDelay: PropTypes.number,
-      placeholderError: PropTypes.func
+      placeholderDelay: PropTypes.number
     };
 
     render() {
