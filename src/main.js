@@ -64,7 +64,7 @@ const createStore = () => {
       // loaders: PropTypes.object, // FUTURE: automatically call when select throws
       placeholder: PropTypes.func,
       placeholderDelay: PropTypes.number,
-      loadError: PropTypes.func,
+      loaderError: PropTypes.func,
       meta: PropTypes.object
     };
 
@@ -81,7 +81,7 @@ const createStore = () => {
         },
         placeholder: props.placeholder,
         placeholderDelay: props.placeholderDelay,
-        loadError: props.loadError
+        loaderError: props.loaderError
       };
 
       // meta state (api objects, etc.) -- mutable!
@@ -166,7 +166,7 @@ const createStore = () => {
       select: PropTypes.func,
       loader: PropTypes.func,
       loadIf: PropTypes.func,
-      loadError: PropTypes.func,
+      loaderError: PropTypes.func,
       placeholder: PropTypes.func,
       placeholderDelay: PropTypes.number
     };
@@ -190,7 +190,7 @@ const createStore = () => {
                 loadingId: null
               })),
             error => {
-              if (this.props.loadError) {
+              if (this.props.loaderError) {
                 this.setState(prevState => ({
                   ...prevState,
                   error: error
@@ -237,7 +237,7 @@ const createStore = () => {
       props.loader when props.loadIf.
       */
       if (this.state.error) {
-        return this.props.loadError(this.state.error, this.load)
+        return this.props.loaderError(this.state.error, this.load)
       } else if (this.state.loadingId) {
         if (this.props.placeholder) {
           if (this.props.placeholderDelay) {
@@ -272,7 +272,7 @@ const createStore = () => {
       select: PropTypes.func,
       loader: PropTypes.func,
       loadIf: PropTypes.func,
-      loadError: PropTypes.func,
+      loaderError: PropTypes.func,
       placeholder: PropTypes.func,
       placeholderDelay: PropTypes.number
     };

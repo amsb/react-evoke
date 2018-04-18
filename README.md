@@ -24,7 +24,7 @@ ReactDOM.render(
       nextQuote
     }}
     placeholder={() => <div>Loading...</div>}
-    loadError={(error, retry) => (
+    loaderError={(error, retry) => (
       <div>
         <b>{error.toString()}</b> <button onClick={() => retry()}>Retry</button>
       </div>
@@ -49,8 +49,8 @@ A render prop for the placeholder to show while connected data is loading. Can b
 #### **placeholderDelay** *(optional)*
 How long in milliseconds to wait while loader promise is pending before showing the placeholder. The default is `500`, set to `0` to show placeholder without delay.
 
-#### **loadError**
-A render prop for what to render when the promise returned by the loader is rejected. Can be defined or overridden for each `Connector`. If not defined (the default), the error is thrown so you can catch it in [Error Boundary](https://reactjs.org/docs/error-boundaries.html).
+#### **loaderError**
+A render prop for what to render when the promise returned by the loader is rejected. Can be defined or overridden for each `Connector`. If not defined (the default), the error is thrown so you can catch it in an [Error Boundary](https://reactjs.org/docs/error-boundaries.html).
 
 #### **meta**
 An object to store stuff that is not part of the application's view state. This is a good place to stash API objects and the like for later use in executing actions.
@@ -143,8 +143,8 @@ not defined here, the default set on the `Store` provider is used, if available.
 #### **placeholderDelay** *(optional)*
 Override the default delay set by the `Store` provider.
 
-#### **loadError**
-A render prop for what to render when the promise returned by the loader is rejected. A default can be defined on the `Store`. If not defined anywhere, the error is thrown so you can catch it in [Error Boundary](https://reactjs.org/docs/error-boundaries.html).
+#### **loaderError**
+A render prop for what to render when the promise returned by the loader is rejected. A default can be defined on the `Store`. If not defined anywhere, the error is thrown so you can catch it in an [Error Boundary](https://reactjs.org/docs/error-boundaries.html).
 
 
 ## Legal

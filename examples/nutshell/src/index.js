@@ -70,7 +70,7 @@ ReactDOM.render(
       nextQuote
     }}
     placeholder={() => <div>Loading...</div>}
-    loadError={(error, retry) => (
+    loaderError={(error, retry) => (
       <div>
         <b>{error.toString()}</b> <button onClick={() => retry()}>Retry</button>
       </div>
