@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom";
-import createStore from "./react-synaptic";
+import createStore from "react-synaptic";
 import quotes from "../node_modules/pragmatic-motd/data/quotes.json";
 
 const { Store, Connector } = createStore();
@@ -9,7 +9,7 @@ const MAX_QUOTE_ID = quotes.length + 1;
 
 function fetchQuote(quoteId) {
   console.log("Fetching...");
-  if (Math.random() > 0.75) {
+  if (Math.random() > 0.5) {
     // randomly throw error
     console.error("Throwing Error!");
     throw Error("Network Error");
@@ -21,7 +21,7 @@ function fetchQuote(quoteId) {
 
 async function loadQuote(store, quoteId) {
   const quote = await fetchQuote(quoteId);
-  await store.update(state => {
+  await store.mutate(state => {
     if (!state.quotes) {
       state.quotes = {};
     }
@@ -30,7 +30,7 @@ async function loadQuote(store, quoteId) {
 }
 
 async function nextQuote(store) {
-  await store.update(state => {
+  await store.mutate(state => {
     state.quoteId = state.quoteId + 1;
     if (state.quoteId >= MAX_QUOTE_ID) {
       state.quoteId = 1;

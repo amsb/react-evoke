@@ -62,18 +62,18 @@ The application defines handlers for performing **actions** that typically invol
 ```javascript
 async function loadQuote(store, quoteId) {
   const quote = await fetchQuote(quoteId);
-  await store.update(state => {
+  await store.mutate(state => {
     // update immer draft state with direct mutation
     state.quotes[quoteId] = quote;
   });
 }
 ```
 
-Action handlers update the state of the store with the `store.update` method. The update method takes a *function of the current state* as its argument. The **updater function must MUTATE the provided state object** ([examples](https://github.com/mweststrate/immer#example-patterns)) which is an Immer draft state that will be used to produce an immutable update to the React component state managed by `Store`.
+Action handlers update the state of the store with the `store.mutate` method. The mutate method takes a *function of the current state* as its argument. The **mutator function must MUTATE the provided state object** ([examples](https://github.com/mweststrate/immer#example-patterns)) which is an Immer draft state that will be used to produce an immutable update to the React component state managed by `Store`.
 
-Alternatively, the `store.update` method takes a second argument, `replace`, which can be set to `true` to use React's conventional state updating semantics. In this mode, the updater method receives current state as its argument and returns the next state: `(prevState) => nextState`. The **updater function must NOT mutate `prevState`**, but instead must return a new state object (that structurally shares previous state objects where possible).
+Alternatively, the `store.update` uses React's conventional state updating semantics. In this mode, the updater method receives current state as its argument and returns the next state: `(prevState) => nextState`. The **updater function must NOT mutate `prevState`**, but instead must return a new state object (that structurally shares previous state objects where possible).
 
-The action handler can make asynchronous calls like fetching data from a remote server, update the state as many times as desired, or dispatch other actions.
+The action handler can make asynchronous calls like fetching data from a remote server, update the state as many times as desired, or dispatch other actions using `store.actions.someAction()`.
 
 > More than one action handler can be assigned to a single named action and all will be executed (with no control over execution order), allowing the application to be extended cooperatively with different parts of the application responding as each needs to a dispatched action. This enables actions to be used as a mechanism for intra-application coordination. For example, a failed sign-in attempt can dispatch a `handleSigninFailure` action that multiple parts of the application may respond to independently.
 

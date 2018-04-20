@@ -113,28 +113,29 @@ const createStore = () => {
       );
     };
 
-    update = (updater, replace) =>
-      replace
-        ? new Promise(resolve =>
-            // use traditional react setState semantics
-            this.setState(
-              ({ state: prevState, ...rest }) => ({
-                state: updater(prevState),
-                ...rest
-              }),
-              resolve
-            )
-          )
-        : new Promise(resolve =>
-            // user immer copy-on-write (mutate draft) semantics
-            this.setState(
-              ({ state: prevState, ...rest }) => ({
-                state: produce(prevState, draftState => updater(draftState)),
-                ...rest
-              }),
-              resolve
-            )
-          );
+    update = updater =>
+      new Promise(resolve =>
+        // use traditional react setState semantics
+        this.setState(
+          ({ state: prevState, ...rest }) => ({
+            state: updater(prevState),
+            ...rest
+          }),
+          resolve
+        )
+      );
+
+    mutate = mutator =>
+      new Promise(resolve =>
+        // user immer copy-on-write (mutate draft) semantics
+        this.setState(
+          ({ state: prevState, ...rest }) => ({
+            state: produce(prevState, draftState => mutator(draftState)),
+            ...rest
+          }),
+          resolve
+        )
+      );
 
     dispatch = (action, payload) => {
       if (this.handlers.hasOwnProperty(action)) {
@@ -237,7 +238,7 @@ const createStore = () => {
       props.loader when props.loadIf.
       */
       if (this.state.error) {
-        return this.props.loaderError(this.state.error, this.load)
+        return this.props.loaderError(this.state.error, this.load);
       } else if (this.state.loadingId) {
         if (this.props.placeholder) {
           if (this.props.placeholderDelay) {

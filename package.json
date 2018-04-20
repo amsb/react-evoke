@@ -1,6 +1,6 @@
 {
   "name": "react-synaptic",
-  "version": "2.0.0-rc.4",
+  "version": "2.0.0-rc.5",
   "author": "Alexander M. Sauer-Budge",
   "license": "MIT",
   "repository": {
@@ -12,10 +12,10 @@
   "browser": "dist/react-synaptic.umd.js",
   "dependencies": {
     "immer": "^1.2.1",
-    "prop-types": "^15.6.1",
-    "react": "^16.3.2"
+    "prop-types": "^15.6.1"
   },
   "devDependencies": {
+    "react": "^16.3.2",
     "babel-core": "^6.26.0",
     "babel-plugin-external-helpers": "^6.22.0",
     "babel-plugin-transform-class-properties": "^6.24.1",
@@ -30,6 +30,9 @@
     "rollup-plugin-commonjs": "^9.1.0",
     "rollup-plugin-node-resolve": "^3.3.0"
   },
+  "peerDependencies": {
+    "react": "^16.3.0"
+  },  
   "scripts": {
     "build": "NODE_ENV=production rollup -c",
     "prepare": "npm run build",
