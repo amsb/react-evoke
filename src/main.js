@@ -165,7 +165,7 @@ const createStore = () => {
       state: PropTypes.object,
       actions: PropTypes.object,
       select: PropTypes.func,
-      loader: PropTypes.func,
+      loader: PropTypes.oneOfType([PropTypes.func, PropTypes.string]),
       loadIf: PropTypes.func,
       loaderError: PropTypes.func,
       placeholder: PropTypes.func,
@@ -183,7 +183,9 @@ const createStore = () => {
         prevState => ({ ...prevState, error: false, shouldLoad: false }),
         () => {
           Promise.resolve(
-            this.props.loader(this.props.state, this.props.actions)
+            typeof this.props.loader === "function"
+              ? this.props.loader(this.props.state, this.props.actions)
+              : this.props.actions[this.props.loader]()
           ).then(
             () =>
               this.setState(prevState => ({

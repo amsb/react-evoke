@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom";
-import createStore from "react-synaptic";
+import createStore from "./react-synaptic";
 import quotes from "../node_modules/pragmatic-motd/data/quotes.json";
 
 const { Store, Connector } = createStore();
