@@ -1,15 +1,15 @@
 {
-  "name": "react-synaptic",
-  "version": "2.0.0-rc.5",
+  "name": "react-evoke",
+  "version": "0.1.0",
   "author": "Alexander M. Sauer-Budge",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/amsb/react-synaptic.git"
+    "url": "https://github.com/amsb/react-evoke.git"
   },
-  "main": "dist/react-synaptic.cjs.js",
-  "module": "dist/react-synaptic.esm.js",
-  "browser": "dist/react-synaptic.umd.js",
+  "main": "dist/react-evoke.cjs.js",
+  "module": "dist/react-evoke.esm.js",
+  "browser": "dist/react-evoke.umd.js",
   "dependencies": {
     "immer": "^1.2.1",
     "prop-types": "^15.6.1"
