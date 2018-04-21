@@ -5,9 +5,9 @@ Straightforward action-driven state management for straightforward apps built on
 
 ## Rationale
 
-Why create yet another React state management framework? React provides an unopinionated open architecture ecosystem that makes React an extremely flexible application development component. While there is the tendency to want the "one true solution", the reality is that different applications and teams have different needs and preferences. This, unfortunately, creates a bit of barrier to newcomers, but it creates a lot of adaptability for application development. React provides an extremely effective local state management solution, but doesn't offer much help for shared state management when your needs extend beyond lifting state up and passing down props. There is a spectrum of community frameworks available spanning the gamut from reactive (mobx) to reductive (redux). The two frameworks at the extremes are both amazing in their own right, but there remain many opportunities for different trade-offs in the middle to suit different use cases. React Evoke is one such middle dweller. If you like the trade-offs it makes and the style of its API, feel free to use it in your own projects!
+Why create yet another React state management framework? React provides an unopinionated open architecture ecosystem that makes it an extremely flexible application development component. While there is the tendency to want the "one true solution", the reality is that different applications and teams have different needs and preferences. This, unfortunately, creates a bit of barrier to newcomers, but it creates a lot of adaptability for application development. React provides an extremely effective local state management solution, but until recently didn't much help for shared state management when your needs extend beyond lifting state up and passing down props. There is a spectrum of community frameworks available spanning the gamut from reactive (mobx) to reductive (redux). The two frameworks at the extremes are both amazing in their own right, but there remain many opportunities for different trade-offs in the middle to suit different use cases. React Evoke is one such middle dweller. With the recently released first class Context API and upcoming suspense features, React now provides a firm foundation to create lightweight solutions to accommodate different needs and preferences.  If you like the trade-offs it makes and the style of its API, feel free to use it in your own projects!
 
-In particular, React Evoke was designed for applications that want to use the CQRS/redux style primarily for relatively coarse-grained interactions with remote services. As a result, it is easy to define async actions that get/post from/to remote services, but the framework is not well suited for making every key-stroke or local interaction an "action" since every action creates and resolves a promise. Furthermore, React Evoke forgoes the (sometimes very helpful) formalism of separating remote query/mutation from local query/mutation by embedding the local mutation operation inside the action instead of separating the two as would be done with redux. If these trade-offs make sense for your app, so might React Evoke!
+In particular, React Evoke was designed for applications that want to use the CQRS/redux style primarily for relatively coarse-grained interactions with remote services while embracing React's primitives. As a result, it is easy to define async actions that get/post from/to remote services, but the framework is not well suited for making every key-stroke or local interaction an "action" since every action creates and resolves a promise. In practice, this means using local state to control form and other micro-interactions while using Evoke to process the end result. Furthermore, React Evoke forgoes the (sometimes very helpful) formalism of separating remote query/mutation from local query/mutation by embedding the local mutation operation inside the action instead of separating the two as would be done with redux. If these trade-offs make sense for your app, so might React Evoke!
 
 ## Store
 The `Store` *component* holds shared application **state** and a registery of **actions** for modifying that state. Here's an example:
@@ -39,7 +39,7 @@ ReactDOM.render(
   document.getElementById("root")
 );
 ```
-You can have as many layered or indpendent stores as makes sense for you application.
+You can have as many layered or independent stores as makes sense for you application.
 
 ### `Store` Component Properties
 #### **actions**
@@ -155,7 +155,7 @@ A render prop that takes two arguments `(error, retry)` for what to render when 
 
 While hopefully, this library reflects a refined simplicity as I've iterated on it over the past few months, there are still some moving pieces I hope to pin down:
 
-* I want to be able to take advantage of the optimistic synchronicity enabled by React Suspense through the `Timeout` component (as I understand it). This is an immediate objective that can hopefully be accomplished once the suspense/`Timeout` API is finalized.
+* Take advantage of the optimistic synchronicity enabled by React Suspense through the `Timeout` component (as I understand it). This is an immediate objective that can hopefully be accomplished once the suspense/`Timeout` API is finalized.
 * Implicitly resolve undefined state in select statements by capturing the undefined select path and implicitly dispatching path-based actions defined for the `Store`. This is a more aspirational objective that may not be reasonably realized.
 
 ## Legal
