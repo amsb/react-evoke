@@ -45,16 +45,7 @@ function Quote({ title, description }) {
   );
 }
 
-function QuoteView({ quoteId }) {
-  const [quotes, { nextQuote }] = useStore("quotes", ["loadQuote", quoteId]);
-  return (
-    <>
-      <Quote {...quotes[quoteId]} />
-      <button onClick={() => nextQuote()}>Next Quote</button>
-    </>
-  );
-}
-
+// Render function
 // function QuoteView({ quoteId }) {
 //   return (
 //     <UseStore name="quotes" initializer={["loadQuote", quoteId]}>
@@ -67,6 +58,17 @@ function QuoteView({ quoteId }) {
 //     </UseStore>
 //   );
 // }
+
+// Hooks
+function QuoteView({ quoteId }) {
+  const [quotes, { nextQuote }] = useStore("quotes", ["loadQuote", quoteId]);
+  return (
+    <>
+      <Quote {...quotes[quoteId]} />
+      <button onClick={() => nextQuote()}>Next Quote</button>
+    </>
+  );
+}
 
 function ErrorMessage({ state, error, clearError }) {
   return (
