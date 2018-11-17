@@ -3,19 +3,24 @@
   "version": "0.0.1",
   "private": true,
   "devDependencies": {
-    "react-scripts": "1.0.17"
+    "react-scripts": "2.0.5"
   },
   "dependencies": {
-    "immer": "^1.2.1",
+    "immer": "^1.7.2",
     "pragmatic-motd": "^0.1.0",
-    "react": "^16.3.0",
-    "react-dom": "^16.3.0",
-    "react-synaptic": "^2.0.0-rc.2"
+    "react": "16.7.0-alpha.2",
+    "react-dom": "16.7.0-alpha.2"
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test --env=jsdom",
     "eject": "react-scripts eject"
-  }
+  },
+  "browserslist": [
+    ">0.2%",
+    "not dead",
+    "not ie <= 11",
+    "not op_mini all"
+  ]
 }

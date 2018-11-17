@@ -1,18 +1,16 @@
-import React from "react";
+import React, { Suspense } from "react";
 import ReactDOM from "react-dom";
-import createStore from "react-evoke";
+import createStore from "./react-evoke";
 import quotes from "../node_modules/pragmatic-motd/data/quotes.json";
 
-const { Store, Connector } = createStore();
+const { Store, UseStore, ErrorBoundary, useStore } = createStore();
 
 const MAX_QUOTE_ID = quotes.length + 1;
 
 function fetchQuote(quoteId) {
-  console.log("Fetching...");
-  if (Math.random() > 0.5) {
-    // randomly throw error
-    console.error("Throwing Error!");
-    throw Error("Network Error");
+  if (Math.random() > 0.75) {
+    // randomly return error
+    return Promise.reject(Error("Network Error"));
   }
   return new Promise(resolve =>
     setTimeout(() => resolve(quotes[quoteId - 1]), 1000)
@@ -21,7 +19,7 @@ function fetchQuote(quoteId) {
 
 async function loadQuote(store, quoteId) {
   const quote = await fetchQuote(quoteId);
-  await store.mutate(state => {
+  await store.update(state => {
     if (!state.quotes) {
       state.quotes = {};
     }
@@ -30,7 +28,7 @@ async function loadQuote(store, quoteId) {
 }
 
 async function nextQuote(store) {
-  await store.mutate(state => {
+  await store.update(state => {
     state.quoteId = state.quoteId + 1;
     if (state.quoteId >= MAX_QUOTE_ID) {
       state.quoteId = 1;
@@ -38,45 +36,94 @@ async function nextQuote(store) {
   });
 }
 
-const App = () => (
-  <div>
-    <Connector
-      select={(state, actions) => ({
-        quote: state.quotes[state.quoteId],
-        onClick: () => actions.nextQuote()
-      })}
-      loadIf={state => !state.quotes[state.quoteId]}
-      loader={(state, actions) => actions.loadQuote(state.quoteId)}
-    >
-      {({ quote, onClick }) => (
-        <div>
-          <h4>{quote.title}</h4>
-          <p>{quote.description}</p>
-          <button onClick={onClick}>Next Quote</button>
-        </div>
-      )}
-    </Connector>
-  </div>
-);
+function Quote({ title, description }) {
+  return (
+    <>
+      <h4>{title}</h4>
+      <p>{description}</p>
+    </>
+  );
+}
+
+function QuoteView({ quoteId }) {
+  const [quotes, { nextQuote }] = useStore("quotes", ["loadQuote", quoteId]);
+  return (
+    <>
+      <Quote {...quotes[quoteId]} />
+      <button onClick={() => nextQuote()}>Next Quote</button>
+    </>
+  );
+}
+
+// function QuoteView({ quoteId }) {
+//   return (
+//     <UseStore name="quotes" initializer={["loadQuote", quoteId]}>
+//       {(quotes, { nextQuote }) => (
+//         <>
+//           <Quote {...quotes[quoteId]} />
+//           <button onClick={() => nextQuote()}>Next Quote</button>
+//         </>
+//       )}
+//     </UseStore>
+//   );
+// }
+
+function ErrorMessage({ state, error, clearError }) {
+  return (
+    <>
+      <h1 style={{ color: "red" }}>{error.message}</h1>
+      <button onClick={() => clearError()}>Try Again</button>
+      <pre>{JSON.stringify(state, null, 2)}</pre>
+    </>
+  );
+}
+
+function App() {
+  const [quoteId, _] = useStore("quoteId");
+  return (
+    <ErrorBoundary fallback={ErrorMessage}>
+      <Suspense
+        maxDuration={1000}
+        fallback={
+          <p style={{ color: "blue", fontWeight: "bold" }}>Loading...</p>
+        }
+      >
+        <QuoteView quoteId={quoteId} />
+      </Suspense>
+    </ErrorBoundary>
+  );
+}
+
+// function App() {
+//   return (
+//     <UseStore name="quoteId">
+//       {quoteId => (
+//         <Suspense
+//           maxDuration={1000}
+//           fallback={
+//             <p style={{ color: "blue", fontWeight: "bold" }}>Loading...</p>
+//           }
+//         >
+//           <QuoteView quoteId={quoteId} />
+//         </Suspense>
+//       )}
+//     </UseStore>
+//   );
+// }
 
 ReactDOM.render(
-  <Store
-    initialState={{
-      quoteId: 1,
-      quotes: {}
-    }}
-    actions={{
-      loadQuote,
-      nextQuote
-    }}
-    placeholder={() => <div>Loading...</div>}
-    loaderError={(error, retry) => (
-      <div>
-        <b>{error.toString()}</b> <button onClick={() => retry()}>Retry</button>
-      </div>
-    )}
-  >
-    <App />
-  </Store>,
+  <Suspense>
+    <Store
+      actions={{
+        loadQuote,
+        nextQuote
+      }}
+      initialState={{
+        quoteId: 1
+      }}
+    >
+      <App />
+    </Store>
+  </Suspense>,
   document.getElementById("root")
 );

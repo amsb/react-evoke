@@ -3,139 +3,55 @@ import PropTypes from "prop-types";
 import produce from "immer";
 
 const createContext = React.createContext;
-// ? React.createContext
-// : require("react-broadcast").createContext;
 
-// const REGISTER = Symbol("register");
-
-class Delayed extends React.Component {
-  static propTypes = {
-    render: PropTypes.func.isRequired,
-    delay: PropTypes.number
-  };
-
-  constructor(props) {
-    super(props);
-    this.state = {
-      hidden: props.delay > 0
-    };
-    this._isMounted = false;
-    this._timeout = null;
-  }
-
-  componentDidMount = () => {
-    this._isMounted = true;
-    if (this.props.delay > 0 && !this.state.hidden) {
-      this.setState({ ...this.state, hidden: true });
-    }
-    this._timeout = setTimeout(() => {
-      if (this._isMounted) {
-        this.setState({ hidden: false });
-      }
-    }, this.props.delay);
-  };
-
-  componentWillUnmount() {
-    this._isMounted = false;
-  }
-
-  render() {
-    if (!this.state.hidden) {
-      return this.props.render();
-    } else {
-      return null;
-    }
-  }
+function isPromise(obj) {
+  return (
+    !!obj &&
+    (typeof obj === "object" || typeof obj === "function") &&
+    typeof obj.then === "function"
+  );
 }
 
-Delayed.defaultProps = {
-  delay: 500
-};
-
-const Connected = ({ children, ...props }) => children(props);
-
 const createStore = () => {
-  const StoreContext = createContext({ state: {}, actions: {} });
+  const StoreContext = createContext({});
 
   class Store extends React.Component {
     static propTypes = {
-      actions: PropTypes.object,
       initialState: PropTypes.object,
-      // loaders: PropTypes.object, // FUTURE: automatically call when select throws
-      placeholder: PropTypes.func,
-      placeholderDelay: PropTypes.number,
-      loaderError: PropTypes.func,
+      actions: PropTypes.object,
       meta: PropTypes.object
     };
 
     constructor(props) {
       super(props);
 
+      this.actions = {};
       this.handlers = {};
+      this.initializers = {};
+
+      this.register(props.actions);
 
       this.state = {
         state: props.initialState || {},
-        actions: {
-          // [REGISTER]: this.register, // FUTURE: dynamically register new actions
-          ...this.createActions(this.props.actions || {})
-        },
-        placeholder: props.placeholder,
-        placeholderDelay: props.placeholderDelay,
-        loaderError: props.loaderError
+        initialize: this.initialize,
+        register: this.register,
+        actions: this.actions
       };
 
       // meta state (api objects, etc.) -- mutable!
       this.meta = props.meta || {};
     }
 
-    createActions = handlers => {
-      let newActions = {};
+    register = handlers => {
       Object.entries(handlers).forEach(([action, handler]) => {
         if (!this.handlers.hasOwnProperty(action)) {
-          // use Set to avoid double-adding same handler function
           this.handlers[action] = new Set();
-          newActions[action] = payload => this.dispatch(action, payload);
+          this.initializers[action] = {};
+          this.actions[action] = payload => this.dispatch(action, payload);
         }
         this.handlers[action].add(handler);
       });
-      return newActions;
     };
-
-    register = handlers => {
-      return new Promise(resolve =>
-        this.setState(
-          prevState => ({
-            ...prevState,
-            actions: { ...this.state.actions, ...this.createActions(handlers) }
-          }),
-          resolve
-        )
-      );
-    };
-
-    update = updater =>
-      new Promise(resolve =>
-        // use traditional react setState semantics
-        this.setState(
-          ({ state: prevState, ...rest }) => ({
-            state: updater(prevState),
-            ...rest
-          }),
-          resolve
-        )
-      );
-
-    mutate = mutator =>
-      new Promise(resolve =>
-        // user immer copy-on-write (mutate draft) semantics
-        this.setState(
-          ({ state: prevState, ...rest }) => ({
-            state: produce(prevState, draftState => mutator(draftState)),
-            ...rest
-          }),
-          resolve
-        )
-      );
 
     dispatch = (action, payload) => {
       if (this.handlers.hasOwnProperty(action)) {
@@ -146,10 +62,68 @@ const createStore = () => {
         );
         return Promise.all(promises);
       } else {
-        // ignore undeclared actions
-        return Promise.resolve();
+        if (process.env.NODE_ENV !== "production") {
+          console.warning(`Unregistered action ${action} dispatched`);
+        }
+        return Promise.resolve(); // ignore undeclared actions
       }
     };
+
+    initialize = (action, payload) => {
+      const cache = this.initializers[action];
+      const key = payload;
+      const value = cache[key];
+      if (value === undefined) {
+        const promise = this.dispatch(action, payload);
+        cache[key] = promise;
+        promise.then(
+          value => {
+            cache[key] = true;
+          },
+          error => {
+            cache[key] = error;
+          }
+        );
+        throw promise;
+      } else {
+        if (isPromise(value)) {
+          throw value; // pending initializer
+        } else if (value === true) {
+          return value; // resolved initializer
+        } else {
+          value.isInitializer = true;
+          value.clear = () => {
+            delete cache[key];
+          };
+          throw value; // initializer error
+        }
+      }
+    };
+
+    replace = replacer =>
+      new Promise(resolve =>
+        // use traditional react setState semantics to replace current state with
+        // new state that uses structural sharing where values haven't changed
+        this.setState(
+          ({ state: prevState, ...rest }) => ({
+            state: replacer(prevState),
+            ...rest
+          }),
+          resolve
+        )
+      );
+
+    update = mutator =>
+      new Promise(resolve =>
+        // use immer copy-on-write (mutate draft) semantics to update current state
+        this.setState(
+          ({ state: prevState, ...rest }) => ({
+            state: produce(prevState, draftState => mutator(draftState)),
+            ...rest
+          }),
+          resolve
+        )
+      );
 
     render() {
       return (
@@ -160,140 +134,101 @@ const createStore = () => {
     }
   }
 
-  class Connection extends React.Component {
+  class ErrorBoundary extends React.Component {
     static propTypes = {
-      state: PropTypes.object,
-      actions: PropTypes.object,
-      select: PropTypes.func,
-      loader: PropTypes.oneOfType([PropTypes.func, PropTypes.string]),
-      loadIf: PropTypes.func,
-      loaderError: PropTypes.func,
-      placeholder: PropTypes.func,
-      placeholderDelay: PropTypes.number
+      fallback: PropTypes.func.isRequired,
+      onError: PropTypes.func,
+      errorType: PropTypes.object
     };
 
-    state = {
-      shouldLoad: false,
-      loadingId: null,
-      error: null
-    };
+    state = { error: null };
 
-    load = () => {
-      this.setState(
-        prevState => ({ ...prevState, error: false, shouldLoad: false }),
-        () => {
-          Promise.resolve(
-            typeof this.props.loader === "function"
-              ? this.props.loader(this.props.state, this.props.actions)
-              : this.props.actions[this.props.loader]()
-          ).then(
-            () =>
-              this.setState(prevState => ({
-                ...prevState,
-                loadingId: null
-              })),
-            error => {
-              if (this.props.loaderError) {
-                this.setState(prevState => ({
-                  ...prevState,
-                  error: error
-                }));
-              } else {
-                throw error;
-              }
-            }
-          );
-        }
-      );
-    };
-
-    static getDerivedStateFromProps(nextProps, prevState) {
-      if (nextProps.loadIf) {
-        const loadingId = nextProps.loadIf(nextProps.state);
-        if (loadingId && loadingId !== prevState.loadingId) {
-          return {
-            ...prevState,
-            shouldLoad: true,
-            loadingId: loadingId
-          };
-        }
-      }
-      return null;
+    static getDerivedStateFromError(error) {
+      // Update state so the next render will show the fallback UI.
+      return { error: error };
     }
 
-    componentDidMount() {
-      if (this.state.shouldLoad) {
-        this.load();
+    clearError = () => {
+      if (this.state.error.isInitializer) {
+        this.state.error.clear();
       }
-    }
+      this.setState({ error: null });
+    };
 
-    componentDidUpdate() {
-      if (this.state.shouldLoad) {
-        this.load();
+    componentDidCatch(error, info) {
+      // You can also do things like log the error to an error reporting service
+      if (this.props.onError) {
+        this.props.onError(error, info);
       }
     }
 
     render() {
-      /*
-      FUTURE: Replace Delayed and placeholder logic with React.Timeout
-      when React Suspense released. Throw the promise returned by
-      props.loader when props.loadIf.
-      */
       if (this.state.error) {
-        return this.props.loaderError(this.state.error, this.load);
-      } else if (this.state.loadingId) {
-        if (this.props.placeholder) {
-          if (this.props.placeholderDelay) {
-            return (
-              <Delayed
-                render={this.props.placeholder}
-                delay={this.props.placeholderDelay}
-              />
-            );
-          } else {
-            return this.props.placeholder();
-          }
+        if (
+          !this.props.errorType ||
+          this.state.error instanceof this.props.errorType
+        ) {
+          return (
+            <StoreContext.Consumer>
+              {store =>
+                this.props.fallback({
+                  error: this.state.error,
+                  state: store.state,
+                  actions: store.actions,
+                  clearError: this.clearError
+                })
+              }
+            </StoreContext.Consumer>
+          );
         } else {
-          return null;
+          throw this.state.error;
         }
-      } else if (this.props.select) {
-        return (
-          <Connected
-            {...this.props.select(this.props.state, this.props.actions)}
-          >
-            {this.props.children}
-          </Connected>
-        );
       } else {
-        return null;
+        return this.props.children;
       }
     }
   }
 
-  class Connector extends React.Component {
+  class UseStore extends React.Component {
     static propTypes = {
-      select: PropTypes.func,
-      loader: PropTypes.func,
-      loadIf: PropTypes.func,
-      loaderError: PropTypes.func,
-      placeholder: PropTypes.func,
-      placeholderDelay: PropTypes.number
+      name: PropTypes.string,
+      initializer: PropTypes.array
     };
 
     render() {
       return (
         <StoreContext.Consumer>
-          {context => (
-            <Connection {...context} {...this.props}>
-              {this.props.children}
-            </Connection>
-          )}
+          {store =>
+            (this.props.initializer
+              ? store.initialize(...this.props.initializer)
+              : true) &&
+            this.props.children(store.state[this.props.name], store.actions)
+          }
         </StoreContext.Consumer>
       );
     }
   }
 
-  return { Store, Connector };
+  const exports = {
+    Store,
+    ErrorBoundary,
+    UseStore
+  };
+
+  if (React.useContext) {
+    function useStore(name, initializer = null) {
+      const store = React.useContext(StoreContext);
+      if (initializer) {
+        store.initialize(...initializer);
+      }
+      if (name) {
+        return [store.state[name], store.actions];
+      }
+    }
+    exports["useStore"] = useStore;
+  }
+
+  return exports;
 };
 
 export default createStore;

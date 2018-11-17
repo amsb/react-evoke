@@ -1,21 +1,25 @@
 {
   "name": "react-evoke",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "Alexander M. Sauer-Budge",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/amsb/react-evoke.git"
   },
+  "keywords": [
+    "react",
+    "state management"
+  ],
   "main": "dist/react-evoke.cjs.js",
   "module": "dist/react-evoke.esm.js",
   "browser": "dist/react-evoke.umd.js",
   "dependencies": {
-    "immer": "^1.2.1",
-    "prop-types": "^15.6.1"
+    "immer": "^1.7.4",
+    "prop-types": "^15.6.2"
   },
   "devDependencies": {
-    "react": "^16.3.2",
+    "react": "^16.6.3",
     "babel-core": "^6.26.0",
     "babel-plugin-external-helpers": "^6.22.0",
     "babel-plugin-transform-class-properties": "^6.24.1",
@@ -31,8 +35,8 @@
     "rollup-plugin-node-resolve": "^3.3.0"
   },
   "peerDependencies": {
-    "react": "^16.3.0"
-  },  
+    "react": "^16.6.3"
+  },
   "scripts": {
     "build": "NODE_ENV=production rollup -c",
     "prepare": "npm run build",
