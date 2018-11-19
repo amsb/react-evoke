@@ -8,7 +8,7 @@ Using react-evoke involves three primary building blocks:
 2. **actions** functions for updating shared state
 3. **UseStore** component (or the experimental useStore hook) for using shared state
 
-Here how these building blocks work together in a very simple example application.
+You can [browse a simple yet complete example](https://github.com/amsb/react-evoke/blob/master/examples/nutshell/src/index.js), or walk through how to use react-evoke block by block below.
 
 ## Store
 The `Store` *component* holds shared application **state** and a registry of **actions** for modifying that state:
