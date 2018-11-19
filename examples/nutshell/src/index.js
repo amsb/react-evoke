@@ -3,7 +3,11 @@ import ReactDOM from "react-dom";
 import createStore from "./react-evoke";
 import quotes from "../node_modules/pragmatic-motd/data/quotes.json";
 
-const { Store, UseStore, ErrorBoundary, useStore } = createStore();
+// // Using Render Props
+// const { Store, UseStore, ErrorBoundary } = createStore();
+
+// Using Hooks
+const { Store, ErrorBoundary, useStore } = createStore();
 
 const MAX_QUOTE_ID = quotes.length + 1;
 
@@ -45,7 +49,7 @@ function Quote({ title, description }) {
   );
 }
 
-// Render function
+// Using Render Prop
 // function QuoteView({ quoteId }) {
 //   return (
 //     <UseStore name="quotes" initializer={["loadQuote", quoteId]}>
@@ -59,7 +63,7 @@ function Quote({ title, description }) {
 //   );
 // }
 
-// Hooks
+// Using Hooks
 function QuoteView({ quoteId }) {
   const [quotes, { nextQuote }] = useStore("quotes", ["loadQuote", quoteId]);
   return (
@@ -80,52 +84,46 @@ function ErrorMessage({ state, error, clearError }) {
   );
 }
 
-function App() {
-  const [quoteId, _] = useStore("quoteId");
-  return (
-    <ErrorBoundary fallback={ErrorMessage}>
-      <Suspense
-        maxDuration={1000}
-        fallback={
-          <p style={{ color: "blue", fontWeight: "bold" }}>Loading...</p>
-        }
-      >
-        <QuoteView quoteId={quoteId} />
-      </Suspense>
-    </ErrorBoundary>
-  );
-}
-
-// function App() {
+// // Using Render Prop
+// function CurrentQuote() {
 //   return (
 //     <UseStore name="quoteId">
-//       {quoteId => (
-//         <Suspense
-//           maxDuration={1000}
-//           fallback={
-//             <p style={{ color: "blue", fontWeight: "bold" }}>Loading...</p>
-//           }
-//         >
-//           <QuoteView quoteId={quoteId} />
-//         </Suspense>
-//       )}
+//       {quoteId => <QuoteView quoteId={quoteId} />}
 //     </UseStore>
 //   );
 // }
 
-ReactDOM.render(
-  <Suspense>
-    <Store
-      actions={{
-        loadQuote,
-        nextQuote
-      }}
-      initialState={{
-        quoteId: 1
-      }}
-    >
-      <App />
-    </Store>
-  </Suspense>,
-  document.getElementById("root")
-);
+// Using Hooks
+function CurrentQuote() {
+  const [quoteId] = useStore("quoteId");
+  return <QuoteView quoteId={quoteId} />;
+}
+
+function App() {
+  return (
+    <Suspense>
+      <Store
+        actions={{
+          loadQuote,
+          nextQuote
+        }}
+        initialState={{
+          quoteId: 1
+        }}
+      >
+        <ErrorBoundary fallback={ErrorMessage}>
+          <Suspense
+            maxDuration={1000}
+            fallback={
+              <p style={{ color: "blue", fontWeight: "bold" }}>Loading...</p>
+            }
+          >
+            <CurrentQuote />
+          </Suspense>
+        </ErrorBoundary>
+      </Store>
+    </Suspense>
+  );
+}
+
+ReactDOM.render(<App />, document.getElementById("root"));
