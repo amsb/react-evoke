@@ -2,8 +2,6 @@ import React from "react";
 import PropTypes from "prop-types";
 import produce from "immer";
 
-const createContext = React.createContext;
-
 function isPromise(obj) {
   return (
     !!obj &&
@@ -13,7 +11,29 @@ function isPromise(obj) {
 }
 
 const createStore = () => {
-  const StoreContext = createContext({});
+
+  let NAME_COUNT = 0;
+  const NAME_BITS = {};
+
+  function getChangedBits({ state: prev }, { state: next }) {
+    let mask = 0;
+    for (let id in next) {
+      if (prev[id] !== next[id]) {
+        mask |= NAME_BITS[id];
+      }
+    }
+    return mask;
+  }
+
+  function getObservedBits(name) {
+    if (NAME_BITS.hasOwnProperty(name)) {
+      return NAME_BITS[name];
+    } else {
+      return (NAME_BITS[name] = 1 << NAME_COUNT++);
+    }
+  }
+
+  const StoreContext = React.createContext({}, getChangedBits);
 
   class Store extends React.Component {
     static propTypes = {
@@ -197,7 +217,9 @@ const createStore = () => {
 
     render() {
       return (
-        <StoreContext.Consumer>
+        <StoreContext.Consumer
+          unstable_observedBits={getObservedBits(this.props.name)}
+        >
           {store =>
             (this.props.initializer
               ? store.initialize(...this.props.initializer)
@@ -217,7 +239,7 @@ const createStore = () => {
 
   if (React.useContext) {
     function useStore(name, initializer = null) {
-      const store = React.useContext(StoreContext);
+      const store = React.useContext(StoreContext, getObservedBits(name));
       if (initializer) {
         store.initialize(...initializer);
       }
