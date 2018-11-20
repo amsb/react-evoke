@@ -1,14 +1,14 @@
 ## Introduction
 
-Straightforward action-driven state management for straightforward apps built on the React 16.6+ (Context, Suspense and, experimentally, hooks) and [Immer](https://github.com/mweststrate/immer). React Evoke provides a simple framework for dispatching asynchronous state updating actions and accessing that state throughout the application. It is a lightweight library (~250 lines) for shared application state management in the spirit of Command Query Responsibility Segregation (CQRS), flux, redux, etc.
+Straightforward action-driven state management for straightforward apps built on the React 16.6+ (Context, Suspense and, experimentally, hooks) and [Immer](https://github.com/mweststrate/immer). React Evoke provides a simple framework for dispatching asynchronous state updating actions and accessing that state throughout the application. It is a lightweight library for shared application state management in the spirit of Command Query Responsibility Segregation (CQRS), flux, redux, etc.
 
-Using react-evoke involves three primary building blocks:
+Using Evoke involves three primary building blocks:
 
 1. **Store** component for shared state
 2. **actions** functions for updating shared state
 3. **UseStore** component (or the experimental useStore hook) for using shared state
 
-You can [browse a simple yet complete example](https://github.com/amsb/react-evoke/blob/master/examples/nutshell/src/index.js), or walk through how to use react-evoke block by block below.
+You can [browse a simple yet complete example](https://github.com/amsb/react-evoke/blob/master/examples/nutshell/src/index.js), or walk through how to use Evoke block by block below.
 
 ## Store
 The `Store` *component* holds shared application **state** and a registry of **actions** for modifying that state:
@@ -79,7 +79,7 @@ ReactDOM.render(
 
 ## UseStore Component
 
-The shared state and the actions come together through the `UseStore` component or the `useStore` hook (an experimental feature available in React 16.7-alpha). Here's an example showing how to use the `UseStore` component to acces the `Store`'s `quotes` data:
+The shared state and the actions come together through the `UseStore` component or the `useStore` hook (an experimental feature available in React 16.7-alpha). Here's an example showing how to use the `UseStore` component to access the `Store`'s `quotes` data:
 
 ```javascript
 function QuoteView({ quoteId }) {
@@ -187,13 +187,12 @@ The fallback prop provides a component which takes `{ state, actions, error, cle
 * `state` is the current state of the Store which should be treated as **read-only**.
 * `actions` are the callable async actions defined by the store.
 * `error` is the error object that was thrown.
-* `clearError` is an argument-less function that clears the error (and effectivelty "retries") *when the error was thrown by an initializer*.
+* `clearError` is an argument-less function that clears the error (and effectively "retries") *when the error was thrown by an initializer*.
 
 ## Caveats
 
-* This library uses `React.Context` `Comsumer`'s `unstable_observedBits` internally to limit consumer updates to only those "subscribing" to the modified substate. This feature of `React` may go away.
+* This library uses `React.Context` `Consumer`'s `unstable_observedBits` internally to limit consumer updates to only those "subscribing" to the modified substate. This unstable/experimental feature of `React` may be replaced by an alternative mechanism to accomplish the same end.
 * This library makes use of [`Suspense`](https://reactjs.org/docs/code-splitting.html#suspense) in a way that might not yet be officially sanctioned.
-* This library has it's own internal cache that functions similarly to the unreleased [`react-cache`](https://github.com/facebook/react/tree/master/packages/react-cache) but with support for invalidation which will eventually come to the official project.
 
 ## Rationale
 

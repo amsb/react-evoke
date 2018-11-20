@@ -7,7 +7,7 @@ export default [
 	{
 		input: 'src/main.js',
 		output: {
-			name: 'synaptic',
+			name: 'react-evoke',
 			file: pkg.browser,
 			format: 'umd',
 		},
