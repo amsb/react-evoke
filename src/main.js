@@ -247,7 +247,7 @@ const createStore = () => {
   class UseStore extends React.Component {
     static propTypes = {
       name: PropTypes.string.isRequired,
-      item: PropTypes.oneOf([
+      item: PropTypes.oneOfType([
         PropTypes.string,
         PropTypes.number,
         PropTypes.bool,

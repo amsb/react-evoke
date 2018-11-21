@@ -8,8 +8,10 @@
   "dependencies": {
     "immer": "^1.7.2",
     "pragmatic-motd": "^0.1.0",
+    "prop-types": "^15.6.2",
     "react": "16.7.0-alpha.2",
-    "react-dom": "16.7.0-alpha.2"
+    "react-dom": "16.7.0-alpha.2",
+    "react-evoke": "^0.4.0"
   },
   "scripts": {
     "start": "react-scripts start",
