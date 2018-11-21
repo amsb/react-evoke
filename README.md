@@ -1,12 +1,12 @@
 ## Introduction
 
-Straightforward action-driven state management for straightforward apps built on the React 16.6+ (Context, Suspense and, experimentally, hooks) and [Immer](https://github.com/mweststrate/immer). React Evoke provides a simple framework for dispatching asynchronous state updating actions and accessing that state throughout the application. It is a lightweight library for shared application state management in the spirit of Command Query Responsibility Segregation (CQRS), flux, redux, etc.
+Straightforward action-driven state management for straightforward apps built with React 16.6+ Suspense and [Immer](https://github.com/mweststrate/immer). React Evoke provides a simple framework for dispatching asynchronous state updating actions and accessing that state throughout the application. It is a lightweight library for shared application state management in the spirit of Command Query Responsibility Segregation (CQRS), flux, redux, etc.
 
 Using Evoke involves three primary building blocks:
 
 1. **Store** component for shared state
 2. **actions** functions for updating shared state
-3. **UseStore** component (or the experimental useStore hook) for using shared state
+3. **UseStore** component (or the experimental **useStore** hook) for using shared state
 
 You can [browse a simple yet complete example](https://github.com/amsb/react-evoke/blob/master/examples/nutshell/src/index.js), or walk through how to use Evoke block by block below.
 
@@ -19,13 +19,12 @@ const { Store, UseState } = createStore();
 
 ReactDOM.render(
   <Store
-    initialState={{
-      quoteId: 1,
-      quotes: {}
-    }}
     actions={{
       loadQuote,
       nextQuote
+    }}
+    initialState={{
+      quoteId: 1
     }}
   >
     <App />
@@ -34,15 +33,16 @@ ReactDOM.render(
 );
 ```
 
-Although this example uses a single global Store, you can have as many layered or independent stores as makes sense for you application. The `Store` component takes three props: `initialState`, `actions`, and `meta`.:
+Although this example uses a single global Store, you can have as many layered or independent stores as makes sense for your application. The `Store` component takes four props: `actions`, `initializers`, `initialState`, and `meta`.:
 
 * **actions** An object (or module!) declaring action handlers. The next section explains how to create an action handler function.
+* **initializers** *(optional)* An object that maps state names to initialization actions (more on this in the Initializers section below).
 * **initialState** *(optional)* An object containing the initial state.
 * **meta** *(optional)* An object containing data that is not part of the application's view state. This is a good place to stash API objects and the like for later use in executing actions.
 
 
 ## Actions
-The application defines handlers for performing **actions** that typically involve updating the current application state. Action handlers are defined as functions with the signature `(store, payload) => Promise`. You can ddefining them with `async` or explicitly return a `Promise`. Here is an example action handler to performan an async fetch:
+The application defines handlers for performing **actions** that typically involve updating the current application state. Action handlers are defined as functions with the signature `(store, payload) => Promise`. You can defining them with `async` or explicitly return a `Promise`. Here is an example action handler to perform an async fetch:
 
 ```javascript
 async function loadQuote(store, quoteId) {
@@ -84,10 +84,10 @@ The shared state and the actions come together through the `UseStore` component 
 ```javascript
 function QuoteView({ quoteId }) {
   return (
-    <UseStore name="quotes">
-      {(quotes, { nextQuote }) => (
+    <UseStore name="quotes" item={quoteId}>
+      {(quote, { nextQuote }) => (
         <>
-          <Quote {...quotes[quoteId]} />
+          <Quote {...quote} />
           <button onClick={() => nextQuote()}>Next Quote</button>
         </>
       )}
@@ -96,26 +96,30 @@ function QuoteView({ quoteId }) {
 }
 ```
 
-The `UseStore` component uses the same function-as-a-child pattern (a type of render prop) as React's Context. The arguments to the function are `(substate, actions)` where `substate` is the sub-state selected by the key `name`. Sub-states are used to organize the shared data and to limit updates to only Store consumers subscribing to the sub-state that's changed.
+The `UseStore` component uses the same function-as-a-child pattern (a type of render prop) as React's Context. The arguments to the function are `(value, actions)` where `value` is the value selected from the state by the key `name` and *optionally* the sub-key `item`. Evoke manages state updates using React Context so that only components using state under `name` will update if that shared state changes.
 
-But what if `quoteId` hasn't been loaded into `quotes` yet? You can declare an `initializer` to ensure that the `loadQuote(quoteId)` action has been executed at least once before the children are rendered. Initializers are declared as an `[action, payload]` array pair.
+## Initializers
+
+What if `quoteId` hasn't been loaded into `quotes` yet? You can declare a `Store` `initializer` to tell Evoke to first execute `loadQuote(quoteId)` action if that `item` isn't available:
 
 ```javascript
-function QuoteView({ quoteId }) {
-  return (
-    <UseStore name="quotes" initializer={["loadQuote", quoteId]}>
-      {(quotes, { nextQuote }) => (
-        <>
-          <Quote {...quotes[quoteId]} />
-          <button onClick={() => nextQuote()}>Next Quote</button>
-        </>
-      )}
-    </UseStore>
-  );
-}
+  <Store
+    actions={{
+      loadQuote,
+      nextQuote
+    }}
+    initializers={{
+      quotes: "loadQuote"
+    }}
+    initialState={{
+      quoteId: 1
+    }}
+  >
+    <App />
+  </Store>,
 ```
 
- An internal cache is maintained so that the initializer action isn't executed more than once when called as an initializer. To use this feature, you will also need to insert a [`Suspense`](https://reactjs.org/docs/code-splitting.html#suspense) component somewhere in the component tree above the `UseStore` component.
+To use this feature, you will also need to insert a [`Suspense`](https://reactjs.org/docs/code-splitting.html#suspense) component somewhere in the component tree above the `UseStore` component. The Suspense component will suspend rendering of its children while the item is being initialized.
 
 ```javascript
 import createStore from "react-evoke";
@@ -123,7 +127,7 @@ const { Store, UseState } = createStore();
 import actions from "./actions"
 
 ReactDOM.render(
-  <Store actions={actions}>
+  <Store actions={actions} initializers={...}>
     <Suspense fallback={<p>Loading...</p>}>
       <App />
     </Suspense>
@@ -138,10 +142,10 @@ The same functionality that the `UseStore` component provides is also provided t
 
 ```javascript
 function QuoteView({ quoteId }) {
-  const [quotes, { nextQuote }] = useStore("quotes", ["loadQuote", quoteId]);
+  const [quote, { nextQuote }] = useStore("quotes", quoteId);
   return (
     <>
-      <Quote {...quotes[quoteId]} />
+      <Quote {...quote} />
       <button onClick={() => nextQuote()}>Next Quote</button>
     </>
   );
@@ -166,7 +170,7 @@ function ErrorMessage({ state, actions, error, clearError }) {
 }
 
 function App() {
-  const [quoteId, _] = useStore("quoteId");
+  const [quoteId] = useStore("quoteId");
   return (
     <ErrorBoundary fallback={ErrorMessage}>
       <Suspense
@@ -191,7 +195,7 @@ The fallback prop provides a component which takes `{ state, actions, error, cle
 
 ## Caveats
 
-* This library uses `React.Context` `Consumer`'s `unstable_observedBits` internally to limit consumer updates to only those "subscribing" to the modified substate. This unstable/experimental feature of `React` may be replaced by an alternative mechanism to accomplish the same end.
+* This library uses `React.Context` `Consumer`'s `unstable_observedBits` internally to limit consumer updates to only those "subscribing" to the modified substate. This unstable/experimental feature of `React` may be removed/replaced in future version of React.
 * This library makes use of [`Suspense`](https://reactjs.org/docs/code-splitting.html#suspense) in a way that might not yet be officially sanctioned.
 
 ## Rationale

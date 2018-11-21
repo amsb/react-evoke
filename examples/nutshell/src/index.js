@@ -4,7 +4,7 @@ import createStore from "./react-evoke";
 import quotes from "../node_modules/pragmatic-motd/data/quotes.json";
 
 const { Store, UseStore, ErrorBoundary } = createStore();
-// Experimental Hooks Alternative for React 16.7.0-alpha:
+// // Experimental Hooks Alternative for React 16.7.0-alpha:
 // const { Store, ErrorBoundary, useStore } = createStore();
 
 const MAX_QUOTE_ID = quotes.length + 1;
@@ -52,13 +52,12 @@ function Quote({ title, description }) {
   );
 }
 
-// read quote data from Store and render
 function QuoteView({ quoteId }) {
   return (
-    <UseStore name="quotes" initializer={["loadQuote", quoteId]}>
-      {(quotes, { nextQuote }) => (
+    <UseStore name="quotes" item={quoteId}>
+      {(quote, { nextQuote }) => (
         <>
-          <Quote {...quotes[quoteId]} />
+          <Quote {...quote} />
           <button onClick={() => nextQuote()}>Next Quote</button>
         </>
       )}
@@ -66,12 +65,12 @@ function QuoteView({ quoteId }) {
   );
 }
 
-// Experimental Hooks Alternative for React 16.7.0-alpha:
+// // Experimental Hooks Alternative for React 16.7.0-alpha:
 // function QuoteView({ quoteId }) {
-//   const [quotes, { nextQuote }] = useStore("quotes", ["loadQuote", quoteId]);
+//   const [quote, { nextQuote }] = useStore("quotes", quoteId);
 //   return (
 //     <>
-//       <Quote {...quotes[quoteId]} />
+//       <Quote {...quote} />
 //       <button onClick={() => nextQuote()}>Next Quote</button>
 //     </>
 //   );
@@ -97,7 +96,7 @@ function CurrentQuote() {
   );
 }
 
-// Experimental Hooks Alternative for React 16.7.0-alpha:
+// // Experimental Hooks Alternative for React 16.7.0-alpha:
 // function CurrentQuote() {
 //   const [quoteId] = useStore("quoteId");
 //   return <QuoteView quoteId={quoteId} />;
@@ -111,6 +110,9 @@ function App() {
         actions={{
           loadQuote,
           nextQuote
+        }}
+        initializers={{
+          quotes: "loadQuote"
         }}
         initialState={{
           quoteId: 1

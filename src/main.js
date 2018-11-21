@@ -11,7 +11,6 @@ function isPromise(obj) {
 }
 
 const createStore = () => {
-
   let NAME_COUNT = 0;
   const NAME_BITS = {};
 
@@ -37,8 +36,9 @@ const createStore = () => {
 
   class Store extends React.Component {
     static propTypes = {
-      initialState: PropTypes.object,
       actions: PropTypes.object,
+      initializers: PropTypes.object,
+      initialState: PropTypes.object,
       meta: PropTypes.object
     };
 
@@ -47,26 +47,43 @@ const createStore = () => {
 
       this.actions = {};
       this.handlers = {};
-      this.initializers = {};
 
       this.register(props.actions);
 
       this.state = {
         state: props.initialState || {},
-        initialize: this.initialize,
+        read: this.read,
         register: this.register,
         actions: this.actions
       };
 
       // meta state (api objects, etc.) -- mutable!
       this.meta = props.meta || {};
+
+      // internal tracking
+      this._pendingInitializations = {};
+    }
+
+    componentDidUpdate() {
+      Object.keys(this._pendingInitializations).forEach(name => {
+        Object.keys(this._pendingInitializations[name]).forEach(item => {
+          if (
+            this.state.state.hasOwnProperty(name) &&
+            this.state.state[name].hasOwnProperty(item)
+          ) {
+            delete this._pendingInitializations[name][item];
+            if (!Object.keys(this._pendingInitializations[name]).length) {
+              delete this._pendingInitializations[name];
+            }
+          }
+        });
+      });
     }
 
     register = handlers => {
       Object.entries(handlers).forEach(([action, handler]) => {
         if (!this.handlers.hasOwnProperty(action)) {
           this.handlers[action] = new Set();
-          this.initializers[action] = {};
           this.actions[action] = payload => this.dispatch(action, payload);
         }
         this.handlers[action].add(handler);
@@ -83,39 +100,57 @@ const createStore = () => {
         return Promise.all(promises);
       } else {
         if (process.env.NODE_ENV !== "production") {
-          console.warning(`Unregistered action ${action} dispatched`);
+          console.warn(`Unregistered action ${action} dispatched`);
         }
         return Promise.resolve(); // ignore undeclared actions
       }
     };
 
-    initialize = (action, payload) => {
-      const cache = this.initializers[action];
-      const key = payload;
-      const value = cache[key];
+    read = (name, item) => {
+      if (
+        this.state.state.hasOwnProperty(name) &&
+        this.state.state[name].hasOwnProperty(item)
+      ) {
+        // short-circuit when already initialized
+        return this.state.state[name][item];
+      }
+      if (!this._pendingInitializations.hasOwnProperty(name)) {
+        this._pendingInitializations[name] = {};
+      }
+      const cache = this._pendingInitializations[name];
+      const action = this.props.initializers[name];
+      if (!action) {
+        throw Error(
+          `Cannot use undefined ${name}[${item}] without Store initializer for ${name}`
+        );
+      }
+      const value = cache[item];
       if (value === undefined) {
-        const promise = this.dispatch(action, payload);
-        cache[key] = promise;
+        const promise = this.dispatch(action, item);
+        cache[item] = promise;
         promise.then(
           value => {
-            cache[key] = true;
+            cache[item] = true;
           },
           error => {
-            cache[key] = error;
+            cache[item] = error;
           }
         );
         throw promise;
       } else {
         if (isPromise(value)) {
-          throw value; // pending initializer
+          // suspend with pending initializer promise
+          throw value;
         } else if (value === true) {
-          return value; // resolved initializer
+          // resolved initializer (unreached due to short-circuit at top of method)
+          return this.state.state[name][item];
         } else {
+          // throw initializer error to error boundary
           value.isInitializer = true;
           value.clear = () => {
-            delete cache[key];
+            delete cache[item];
           };
-          throw value; // initializer error
+          throw value;
         }
       }
     };
@@ -211,8 +246,13 @@ const createStore = () => {
 
   class UseStore extends React.Component {
     static propTypes = {
-      name: PropTypes.string,
-      initializer: PropTypes.array
+      name: PropTypes.string.isRequired,
+      item: PropTypes.oneOf([
+        PropTypes.string,
+        PropTypes.number,
+        PropTypes.bool,
+        PropTypes.symbol
+      ])
     };
 
     render() {
@@ -220,12 +260,19 @@ const createStore = () => {
         <StoreContext.Consumer
           unstable_observedBits={getObservedBits(this.props.name)}
         >
-          {store =>
-            (this.props.initializer
-              ? store.initialize(...this.props.initializer)
-              : true) &&
-            this.props.children(store.state[this.props.name], store.actions)
-          }
+          {store => {
+            if (this.props.item === undefined) {
+              return this.props.children(
+                store.state[this.props.name],
+                store.actions
+              );
+            } else {
+              return this.props.children(
+                store.read(this.props.name, this.props.item),
+                store.actions
+              );
+            }
+          }}
         </StoreContext.Consumer>
       );
     }
@@ -238,13 +285,12 @@ const createStore = () => {
   };
 
   if (React.useContext) {
-    function useStore(name, initializer = null) {
+    function useStore(name, item) {
       const store = React.useContext(StoreContext, getObservedBits(name));
-      if (initializer) {
-        store.initialize(...initializer);
-      }
-      if (name) {
+      if (item === undefined) {
         return [store.state[name], store.actions];
+      } else {
+        return [store.read(name, item), store.actions];
       }
     }
     exports["useStore"] = useStore;
