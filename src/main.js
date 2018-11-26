@@ -39,6 +39,7 @@ const createStore = () => {
       actions: PropTypes.object,
       initializers: PropTypes.object,
       initialState: PropTypes.object,
+      errorAction: PropTypes.string,
       meta: PropTypes.object
     };
 
@@ -93,10 +94,26 @@ const createStore = () => {
     dispatch = (action, payload) => {
       if (this.handlers.hasOwnProperty(action)) {
         const promises = [];
-        this.handlers[action].forEach(handler =>
+        this.handlers[action].forEach(handler => {
           // IE 11 supports Set.forEach but not Set.values
-          promises.push(handler(this, payload))
-        );
+          try {
+            const result = handler(this, payload);
+            if (isPromise(result)) {
+              promises.push(result);
+            }
+          } catch (error) {
+            if (this.props.errorAction) {
+              this.dispatch(this.props.errorAction, { action, error });
+            } else {
+              throw error;
+            }
+          }
+        });
+        if (this.props.errorAction) {
+          return Promise.all(promises).catch(error =>
+            this.dispatch(this.props.errorAction, { action, error })
+          );
+        }
         return Promise.all(promises);
       } else {
         if (process.env.NODE_ENV !== "production") {
