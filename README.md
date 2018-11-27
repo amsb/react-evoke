@@ -1,6 +1,6 @@
 ## Introduction
 
-Straightforward action-driven state management for straightforward apps built with React 16.6+ Suspense and [Immer](https://github.com/mweststrate/immer). React Evoke provides a simple framework for dispatching both synchronous and asynchronous state updating actions and accessing that state throughout the application. It is a lightweight library for shared application state management in the spirit of Command Query Responsibility Segregation (CQRS), flux, redux, etc.
+Straightforward action-driven state management for straightforward apps built with React 16.6+ Suspense and [Immer](https://github.com/mweststrate/immer). React Evoke provides a simple framework for dispatching asynchronous state updating actions and accessing that state throughout the application. It is a lightweight library for shared application state management in the spirit of Command Query Responsibility Segregation (CQRS), flux, redux, etc.
 
 Using Evoke involves three primary building blocks:
 
@@ -38,12 +38,11 @@ Although this example uses a single global Store, you can have as many layered o
 * **actions** An object (or module!) declaring action handlers. The next section explains how to create an action handler function.
 * **initializers** *(optional)* An object that maps state names to initialization actions (more on this in the Initializers section below).
 * **initialState** *(optional)* An object containing the initial state.
-* **errorAction** *(optional)* An action name to dispatch when another dispatched throws an exception or rejects a promise. The payload will be `{ action, error }` where `action` is the (string) name of the action throwing/rejecting and error is the error value rejected/thrown.
 * **meta** *(optional)* An object containing data that is not part of the application's view state. This is a good place to stash API objects and the like for later use in executing actions.
 
 
 ## Actions
-The application defines handlers for performing **actions** that typically involve updating the current application state. Action handlers are defined as functions with the signature `(store, payload) => undefined || Promise`. You can defining asynchronous actions with `async` or explicitly return a `Promise`. Here is an example action handler to perform an async fetch:
+The application defines handlers for performing **actions** that typically involve updating the current application state. Action handlers are defined as functions with the signature `(store, payload) => Promise`. You can defining them with `async` or explicitly return a `Promise`. Here is an example action handler to perform an async fetch:
 
 ```javascript
 async function loadQuote(store, quoteId) {
@@ -201,7 +200,9 @@ The fallback prop provides a component which takes `{ state, actions, error, cle
 
 ## Rationale
 
-Why create yet another React state management library? React provides an unopinionated open architecture ecosystem that makes it a flexible application development foundation. While there is the tendency to want the "one true solution", the reality is that different applications and teams have different needs and preferences. This, unfortunately, creates a bit of barrier to newcomers, but it creates a lot of adaptability for application development. React provides an effective local state management solution, but until recently didn't much help for shared state management when your needs extend beyond lifting state up and passing down props. There is a spectrum of community frameworks available spanning the gamut from reactive (mobx) to reductive (redux). The two frameworks at the extremes are both amazing in their own right, but there remain many opportunities for different trade-offs in the middle to suit different use cases. React Evoke is one such middle dweller. With the new class Context API and recently released Suspense features, React now provides a firm foundation to create lightweight solutions to accommodate different needs and preferences. If you like the trade-offs it makes and the style of its API, feel free to use it in your own projects!
+Why create yet another React state management library? React provides an unopinionated open architecture ecosystem that makes it a flexible application development foundation. While there is the tendency to want the "one true solution", the reality is that different applications and teams have different needs and preferences. This, unfortunately, creates a bit of barrier to newcomers, but it creates a lot of adaptability for application development. React provides an effective local state management solution, but until recently didn't much help for shared state management when your needs extend beyond lifting state up and passing down props. There is a spectrum of community frameworks available spanning the gamut from reactive (mobx) to reductive (redux). The two frameworks at the extremes are both amazing in their own right, but there remain many opportunities for different trade-offs in the middle to suit different use cases. React Evoke is one such middle dweller. With the new class Context API and recently released Suspense features, React now provides a firm foundation to create lightweight solutions to accommodate different needs and preferences.  If you like the trade-offs it makes and the style of its API, feel free to use it in your own projects!
+
+In particular, React Evoke was designed for applications that want to use the CQRS/redux style primarily for relatively coarse-grained interactions with remote services while embracing React's primitives. As a result, it is easy to define async actions that get/post from/to remote services, but the framework is not well suited for making every key-stroke or local interaction an "action" since every action creates and resolves a promise. In practice, this means using local state to control form and other micro-interactions while using Evoke to process the end result. Furthermore, React Evoke forgoes the (sometimes very helpful) formalism of separating remote query/mutation from local query/mutation by embedding the local mutation operation inside the action instead of separating the two as would be done with redux. If these trade-offs make sense for your app, so might React Evoke!
 
 
 ## Legal

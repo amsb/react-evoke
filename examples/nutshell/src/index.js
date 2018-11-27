@@ -1,6 +1,6 @@
 import React, { Suspense } from "react";
 import ReactDOM from "react-dom";
-import createStore from "./react-evoke";
+import createStore from "react-evoke";
 import quotes from "../node_modules/pragmatic-motd/data/quotes.json";
 
 const { Store, UseStore, ErrorBoundary } = createStore();
