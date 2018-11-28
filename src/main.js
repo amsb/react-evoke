@@ -107,12 +107,13 @@ const createStore = () => {
     };
 
     read = (name, item) => {
-      if (
-        this.state.state.hasOwnProperty(name) &&
-        this.state.state[name].hasOwnProperty(item)
-      ) {
-        // short-circuit when already initialized
-        return this.state.state[name][item];
+      // short-circuit return when already initialized
+      if (this.state.state.hasOwnProperty(name)) {
+        if (item === undefined) {
+          return this.state.state[name];
+        } else if (this.state.state[name].hasOwnProperty(item)) {
+          return this.state.state[name][item];
+        }
       }
       if (!this._pendingInitializations.hasOwnProperty(name)) {
         this._pendingInitializations[name] = {};
@@ -120,20 +121,32 @@ const createStore = () => {
       const cache = this._pendingInitializations[name];
       const action = this.props.initializers[name];
       if (!action) {
-        throw Error(
-          `Cannot use undefined ${name}[${item}] without Store initializer for ${name}`
-        );
+        if (item === undefined) {
+          throw Error(
+            `Cannot use undefined ${name} without Store initializer for ${name}`
+          );
+        } else {
+          throw Error(
+            `Cannot use undefined ${name}[${item}] without Store initializer for ${name} with payload ${item}`
+          );
+        }
       }
-      const value = cache[item];
+      const cacheKeyForItem = item;
+      const value = cache[cacheKeyForItem];
       if (value === undefined) {
-        const promise = this.dispatch(action, item);
-        cache[item] = promise;
+        const promise = new Promise(resolve =>
+          // avoid updating state during existing state transition by deferring dispatch
+          // until after promise is thrown and the calling render function exits.
+          // https://developer.mozilla.org/en-US/docs/Web/JavaScript/EventLoop#Zero_delays
+          setTimeout(resolve, 0)).then(() => this.dispatch(action, item)
+        );
+        cache[cacheKeyForItem] = promise;
         promise.then(
           value => {
-            cache[item] = true;
+            cache[cacheKeyForItem] = true;
           },
           error => {
-            cache[item] = error;
+            cache[cacheKeyForItem] = error;
           }
         );
         throw promise;
@@ -143,12 +156,16 @@ const createStore = () => {
           throw value;
         } else if (value === true) {
           // resolved initializer (unreached due to short-circuit at top of method)
-          return this.state.state[name][item];
+          if (item === undefined) {
+            return this.state.state[name];
+          } else {
+            return this.state.state[name][item];
+          }
         } else {
           // throw initializer error to error boundary
           value.isInitializer = true;
           value.clear = () => {
-            delete cache[item];
+            delete cache[cacheKeyForItem];
           };
           throw value;
         }
@@ -261,17 +278,10 @@ const createStore = () => {
           unstable_observedBits={getObservedBits(this.props.name)}
         >
           {store => {
-            if (this.props.item === undefined) {
-              return this.props.children(
-                store.state[this.props.name],
-                store.actions
-              );
-            } else {
-              return this.props.children(
-                store.read(this.props.name, this.props.item),
-                store.actions
-              );
-            }
+            return this.props.children(
+              store.read(this.props.name, this.props.item),
+              store.actions
+            );
           }}
         </StoreContext.Consumer>
       );

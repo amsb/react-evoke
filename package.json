@@ -1,6 +1,6 @@
 {
   "name": "react-evoke",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "author": "Alexander M. Sauer-Budge",
   "license": "MIT",
   "repository": {
@@ -9,7 +9,8 @@
   },
   "keywords": [
     "react",
-    "state management"
+    "state management",
+    "immer"
   ],
   "main": "dist/react-evoke.cjs.js",
   "module": "dist/react-evoke.esm.js",
