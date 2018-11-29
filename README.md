@@ -4,9 +4,9 @@ Straightforward action-driven state management for straightforward apps built wi
 
 Using Evoke involves three primary building blocks:
 
-1. **Store** component for shared state
-2. **actions** functions for updating shared state
-3. **UseStore** component (or the experimental **useStore** hook) for using shared state
+1. A **Store** for shared state
+2. Asynchronous **actions** for updating shared state
+3. Access shared state with **UseStore** component or **useStore** hook (React 16.7+)
 
 You can [browse a simple yet complete example](https://github.com/amsb/react-evoke/blob/master/examples/nutshell/src/index.js), or walk through how to use Evoke block by block below.
 
@@ -33,16 +33,16 @@ ReactDOM.render(
 );
 ```
 
-Although this example uses a single global Store, you can have as many layered or independent stores as makes sense for your application. The `Store` component takes four props: `actions`, `initializers`, `initialState`, and `meta`.:
+The `Store` component takes four props: `actions`, `initializers`, `initialState`, and `meta`.:
 
-* **actions** An object (or module!) declaring action handlers. The next section explains how to create an action handler function.
+* **actions** An object (or module!) declaring action handlers. The next section explains these.
 * **initializers** *(optional)* An object that maps state names to initialization actions (more on this in the Initializers section below).
 * **initialState** *(optional)* An object containing the initial state.
 * **meta** *(optional)* An object containing data that is not part of the application's view state. This is a good place to stash API objects and the like for later use in executing actions.
 
 
 ## Actions
-The application defines handlers for performing **actions** that typically involve updating the current application state. Action handlers are defined as functions with the signature `(store, payload) => Promise`. You can defining them with `async` or explicitly return a `Promise`. Here is an example action handler to perform an async fetch:
+The application defines **actions** for performing shared state updates. Actions are defined as functions with the signature `(store, payload) => Promise`. You can use async/await or explicitly return a `Promise`. Here is an example action to perform an async fetch:
 
 ```javascript
 async function loadQuote(store, quoteId) {
@@ -58,11 +58,9 @@ Action handlers update the state of the store with the `store.update` method. Th
 
 Alternatively, the `store.replace` uses React's conventional state setting semantics. In this mode, the supplied replacer function receives current state as its argument and returns the next state: `(prevState) => nextState`. The **replacer function must NOT MUTATE `prevState`**, but instead *must return a new state object that structurally shares previous state objects where possible*.
 
-The action handler can make asynchronous calls like fetching data from a remote server, update the store state as many times as desired, or dispatch other actions using the pattern `store.actions.someAction()` (either `await`-ed or not as needed).
+Actions can make asynchronous calls like fetching data from a remote server, update the store state as many times as desired, or dispatch other actions using the pattern `store.actions.someAction(payload)` (either `await`-ed or not as needed).
 
-> More than one action handler can be assigned to a single named action and all will be executed (in an undefined execution order), allowing the application to be extended cooperatively with different parts of the application responding as each needs to a dispatched action. This enables actions to be used as a mechanism for intra-application coordination. For example, a failed sign-in attempt can dispatch a `handleSigninFailure` action that multiple parts of the application may respond to independently.
-
-To keep your code organized, you might want to define your actions in a separate module that you import and ffed to the `Store` component:
+To keep your code organized, you might want to define your actions in a separate module that you import and feed to the `Store` component:
 
 ```javascript
 import createStore from "react-evoke";
@@ -77,9 +75,9 @@ ReactDOM.render(
 );
 ```
 
-## UseStore Component
+## UseStore
 
-The shared state and the actions come together through the `UseStore` component or the `useStore` hook (an experimental feature available in React 16.7-alpha). Here's an example showing how to use the `UseStore` component to access the `Store`'s `quotes` data:
+The shared state and the actions come together through the `UseStore` component or the `useStore` hook (React 16.7+). Here's an example showing how to use the `UseStore` component to access the `Store`'s `quotes` data:
 
 ```javascript
 function QuoteView({ quoteId }) {
@@ -96,7 +94,23 @@ function QuoteView({ quoteId }) {
 }
 ```
 
-The `UseStore` component uses the same function-as-a-child pattern (a type of render prop) as React's Context. The arguments to the function are `(value, actions)` where `value` is the value selected from the state by the key `name` and *optionally* the sub-key `item`. Evoke manages state updates using React Context so that only components using state under `name` will update if that shared state changes.
+The `UseStore` component uses the function-as-a-child render prop pattern. The arguments consumed by the function are `(value, actions)` where `value` is the value selected from the state by the key `name` and *optionally* the sub-key `item`. Evoke manages state updates using React Context so that only components using state under `name` will update if that shared state changes.
+
+### Hook
+
+The same functionality that the `UseStore` component provides is also provided through the `useStore` hook for React 16.7+. The `useStore` hook takes the same two arguments as the `UseState` component: a state key `name` and an *optional* `item` sub-key. Here's what the above example looks like as a hook:
+
+```javascript
+function QuoteView({ quoteId }) {
+  const [quote, { nextQuote }] = useStore("quotes", quoteId);
+  return (
+    <>
+      <Quote {...quote} />
+      <button onClick={() => nextQuote()}>Next Quote</button>
+    </>
+  );
+}
+```
 
 ## Initializers
 
@@ -119,7 +133,7 @@ What if `quoteId` hasn't been loaded into `quotes` yet? You can declare a `Store
   </Store>,
 ```
 
-To use this feature, you will also need to insert a [`Suspense`](https://reactjs.org/docs/code-splitting.html#suspense) component somewhere in the component tree above the `UseStore` component. The Suspense component will suspend rendering of its children while the item is being initialized.
+To use this feature, you will also need to insert at least one [`Suspense`](https://reactjs.org/docs/code-splitting.html#suspense) component with a `fallback` somewhere in the component tree above the `UseStore` component or the component using the `useStore` hook. The Suspense component will suspend rendering of its children while the item is being initialized.
 
 ```javascript
 import createStore from "react-evoke";
@@ -136,21 +150,6 @@ ReactDOM.render(
 );
 ```
 
-## useStore Hook
-
-The same functionality that the `UseStore` component provides is also provided through the `useStore` hook for React 16.7+ (currently a proposed feature only available in alpha). The `useStore` hook takes two arguments, the substate key `name` and an *optional* initializer. Here's what the above example looks like as a hook:
-
-```javascript
-function QuoteView({ quoteId }) {
-  const [quote, { nextQuote }] = useStore("quotes", quoteId);
-  return (
-    <>
-      <Quote {...quote} />
-      <button onClick={() => nextQuote()}>Next Quote</button>
-    </>
-  );
-}
-```
 
 ## ErrorBoundary
 
@@ -186,17 +185,17 @@ function App() {
 }
 ```
 
-The fallback prop provides a component which takes `{ state, actions, error, clearError }` as props, where:
+The `ErrorBoundary` component must be a descendant of the Store component. The `fallback` prop provides a component which takes `{ state, actions, error, clearError }` as props, where:
 
-* `state` is the current state of the Store which should be treated as **read-only**.
+* `state` is the current state of the Store which must be treated as **read-only**.
 * `actions` are the callable async actions defined by the store.
 * `error` is the error object that was thrown.
 * `clearError` is an argument-less function that clears the error (and effectively "retries") *when the error was thrown by an initializer*.
 
 ## Caveats
 
-* This library uses `React.Context` `Consumer`'s `unstable_observedBits` internally to limit consumer updates to only those "subscribing" to the modified substate. This unstable/experimental feature of `React` may be removed/replaced in future version of React.
-* This library makes use of [`Suspense`](https://reactjs.org/docs/code-splitting.html#suspense) in a way that might not yet be officially sanctioned.
+* This library uses React Context's `unstable_observedBits` internally to limit consumer updates to only those "subscribing" to the modified substate. This unstable/experimental feature of React may be removed/replaced in future version of React. Hopefully it will be replaced by something even better.
+* This library makes use of [`Suspense`](https://reactjs.org/docs/code-splitting.html#suspense) in a way that isn't yet officially sanctioned.
 
 ## Rationale
 
