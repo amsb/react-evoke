@@ -138,8 +138,8 @@ const createStore = () => {
           // avoid updating state during existing state transition by deferring dispatch
           // until after promise is thrown and the calling render function exits.
           // https://developer.mozilla.org/en-US/docs/Web/JavaScript/EventLoop#Zero_delays
-          setTimeout(resolve, 0)).then(() => this.dispatch(action, item)
-        );
+          setTimeout(resolve, 0)
+        ).then(() => this.dispatch(action, item));
         cache[cacheKeyForItem] = promise;
         promise.then(
           value => {
@@ -263,7 +263,7 @@ const createStore = () => {
 
   class UseStore extends React.Component {
     static propTypes = {
-      name: PropTypes.string.isRequired,
+      name: PropTypes.string,
       item: PropTypes.oneOfType([
         PropTypes.string,
         PropTypes.number,
@@ -275,13 +275,17 @@ const createStore = () => {
     render() {
       return (
         <StoreContext.Consumer
-          unstable_observedBits={getObservedBits(this.props.name)}
+          unstable_observedBits={getObservedBits(this.props.name || 0)}
         >
           {store => {
-            return this.props.children(
-              store.read(this.props.name, this.props.item),
-              store.actions
-            );
+            if (this.props.name) {
+              return this.props.children(
+                store.read(this.props.name, this.props.item),
+                store.actions
+              );
+            } else {
+              return this.props.children(store.actions);
+            }
           }}
         </StoreContext.Consumer>
       );
@@ -296,11 +300,11 @@ const createStore = () => {
 
   if (React.useContext) {
     function useStore(name, item) {
-      const store = React.useContext(StoreContext, getObservedBits(name));
-      if (item === undefined) {
-        return [store.state[name], store.actions];
-      } else {
+      const store = React.useContext(StoreContext, getObservedBits(name || 0));
+      if (name) {
         return [store.read(name, item), store.actions];
+      } else {
+        return store.actions;
       }
     }
     exports["useStore"] = useStore;

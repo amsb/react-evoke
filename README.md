@@ -1,16 +1,55 @@
 ## Introduction
 
-Straightforward action-driven state management for straightforward apps built with React 16.6+ Suspense and [Immer](https://github.com/mweststrate/immer). React Evoke provides a simple framework for dispatching asynchronous state updating actions and accessing that state throughout the application. It is a lightweight library for shared application state management in the spirit of Command Query Responsibility Segregation (CQRS), flux, redux, etc.
+Straightforward action-driven state management for straightforward apps with React 16.6+ Suspense and [Immer](https://github.com/mweststrate/immer). React Evoke provides a simple framework for dispatching asynchronous state updating actions and accessing that state throughout the application. It is a lightweight library for shared application state management in the spirit of Command Query Responsibility Segregation (CQRS), flux, redux, etc.
 
+React Evoke enables components to read existing shared state synchronously (through context) or suspend and initialize asynchronously if the state doesn't yet exist. Here is an example using function-as-child render props (hooks are supported as well):
+
+```javascript
+function App() {
+  return (
+    <Store
+      actions={{ loadQuote, nextQuote }}
+      initializers={{ quotes: "loadQuote" }}
+      initialState={{ quoteId: 1 }}
+    >
+      <ErrorBoundary fallback={ErrorMessage}>
+        <Suspense fallback={<p>Loading...</p>}>
+          <UseStore name="quoteId">
+            {quoteId => (<QuoteView quoteId={quoteId} />)}
+          </UseStore>
+        </Suspense>
+      </ErrorBoundary>
+    </Store>
+  );
+}
+
+function QuoteView({ quoteId }) {
+  return (
+    <UseStore name="quotes" item={quoteId}>
+      {(quote, { nextQuote }) => (
+        <div>
+          <h4>{quote.title}</h4>
+          <p>{quote.description}</p>
+          <button onClick={() => nextQuote()}>Next Quote</button>
+        </div>
+      )}
+    </UseStore>
+  );
+}
+```
+
+On first render, the quote data for `quoteId` 1 isn't yet available, so the render is suspended while the `loadQuote(quoteId)` initializer action fetches it and updates the Store state. Once the action is completed, React Suspense retries the render which succeeds because the quote data has been loaded by the `loadQuote` action.
+
+You can [browse a simple yet complete example](https://github.com/amsb/react-evoke/blob/master/examples/nutshell/src/index.js), or walk through how to use Evoke block by block below.
+
+
+## Store
 Using Evoke involves three primary building blocks:
 
 1. A **Store** for shared state
 2. Asynchronous **actions** for updating shared state
 3. Access shared state with **UseStore** component or **useStore** hook (React 16.7+)
 
-You can [browse a simple yet complete example](https://github.com/amsb/react-evoke/blob/master/examples/nutshell/src/index.js), or walk through how to use Evoke block by block below.
-
-## Store
 The `Store` *component* holds shared application **state** and a registry of **actions** for modifying that state:
 
 ```javascript
@@ -96,7 +135,7 @@ function QuoteView({ quoteId }) {
 
 The `UseStore` component uses the function-as-a-child render prop pattern. The arguments consumed by the function are `(value, actions)` where `value` is the value selected from the state by the key `name` and *optionally* the sub-key `item`. Evoke manages state updates using React Context so that only components using state under `name` will update if that shared state changes.
 
-### Hook
+### useStore Hook
 
 The same functionality that the `UseStore` component provides is also provided through the `useStore` hook for React 16.7+. The `useStore` hook takes the same two arguments as the `UseState` component: a state key `name` and an *optional* `item` sub-key. Here's what the above example looks like as a hook:
 
@@ -195,7 +234,7 @@ The `ErrorBoundary` component must be a descendant of the Store component. The `
 ## Caveats
 
 * This library uses React Context's `unstable_observedBits` internally to limit consumer updates to only those "subscribing" to the modified substate. This unstable/experimental feature of React may be removed/replaced in future version of React. Hopefully it will be replaced by something even better.
-* This library makes use of [`Suspense`](https://reactjs.org/docs/code-splitting.html#suspense) in a way that isn't yet officially sanctioned.
+* This library makes use of [`Suspense`](https://reactjs.org/docs/code-splitting.html#suspense) in a way that isn't (yet) officially sanctioned.
 
 ## Rationale
 

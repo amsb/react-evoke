@@ -43,14 +43,12 @@ async function nextQuote(store) {
 }
 
 // simple component to format quote
-function Quote({ title, description }) {
-  return (
-    <>
-      <h4>{title}</h4>
-      <p>{description}</p>
-    </>
-  );
-}
+const Quote = React.memo(({ title, description }) => (
+  <>
+    <h4>{title}</h4>
+    <p>{description}</p>
+  </>
+));
 
 function QuoteView({ quoteId }) {
   return (
