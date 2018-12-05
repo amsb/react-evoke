@@ -55,9 +55,6 @@ const createStore = () => {
       } else {
         this.state = {};
       }
-      // read: this.read,
-      // register: this.register,
-      // actions: this.actions
 
       // meta state (api objects, etc.) -- mutable!
       this.meta = props.meta || {};
@@ -82,7 +79,7 @@ const createStore = () => {
       Object.keys(this._pendingInitializations).forEach(name => {
         Object.keys(this._pendingInitializations[name]).forEach(item => {
           if (
-            this.state.hasOwnProperty(name) &&
+            this.state[name] &&
             this.state[name].hasOwnProperty(item)
           ) {
             delete this._pendingInitializations[name][item];
@@ -124,6 +121,8 @@ const createStore = () => {
                 // the public Store interface provided to actions
                 update: mutator =>
                   this.update(mutator, { action, payload, dispatchId }),
+                // set: replacer =>
+                //   this.set(replacer, { action, payload, dispatchId }),
                 getState: this.getState,
                 actions: this.actions,
                 meta: this.meta
@@ -155,7 +154,7 @@ const createStore = () => {
 
     read = (name, item) => {
       // short-circuit return when already initialized
-      if (this.state.hasOwnProperty(name)) {
+      if (this.state[name]) { // != null or undefined
         if (item === undefined) {
           return this.state[name];
         } else if (this.state[name].hasOwnProperty(item)) {
@@ -241,6 +240,22 @@ const createStore = () => {
           resolve
         )
       );
+
+    // set = (replacer, context) =>
+    //   // use tradtional setState shallow-merge semantics to replace state
+    //   new Promise(resolve =>
+    //     this.setState(prevState => {
+    //       const nextState = replacer(prevState);
+    //       this.props.unstable_logger &&
+    //         this.props.unstable_logger({
+    //           type: "set",
+    //           ...context,
+    //           nextState
+    //         });
+
+    //       return nextState;
+    //     }, resolve)
+    //   );
 
     render() {
       return (
