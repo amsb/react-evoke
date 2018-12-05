@@ -39,6 +39,7 @@ const createStore = () => {
       actions: PropTypes.object,
       initializers: PropTypes.object,
       initialState: PropTypes.object,
+      unstable_logger: PropTypes.func,
       meta: PropTypes.object
     };
 
@@ -47,29 +48,42 @@ const createStore = () => {
 
       this.actions = {};
       this.handlers = {};
-
       this.register(props.actions);
 
-      this.state = {
-        state: props.initialState || {},
-        read: this.read,
-        register: this.register,
-        actions: this.actions
-      };
+      if (props.initialState) {
+        this.state = { ...props.initialState };
+      } else {
+        this.state = {};
+      }
+      // read: this.read,
+      // register: this.register,
+      // actions: this.actions
 
       // meta state (api objects, etc.) -- mutable!
       this.meta = props.meta || {};
 
       // internal tracking
       this._pendingInitializations = {};
+      this._dispatchId = 1;
+    }
+
+    componentWillUnmount() {
+      if (
+        process.env.NODE_ENV !== "production" &&
+        Object.keys(this._pendingInitializations).length
+      ) {
+        console.error(
+          "Store unmounted during initialization. It must have a Suspense component below it."
+        );
+      }
     }
 
     componentDidUpdate() {
       Object.keys(this._pendingInitializations).forEach(name => {
         Object.keys(this._pendingInitializations[name]).forEach(item => {
           if (
-            this.state.state.hasOwnProperty(name) &&
-            this.state.state[name].hasOwnProperty(item)
+            this.state.hasOwnProperty(name) &&
+            this.state[name].hasOwnProperty(item)
           ) {
             delete this._pendingInitializations[name][item];
             if (!Object.keys(this._pendingInitializations[name]).length) {
@@ -91,11 +105,32 @@ const createStore = () => {
     };
 
     dispatch = (action, payload) => {
+      const dispatchId = this._dispatchId++;
+      this.props.unstable_logger &&
+        this.props.unstable_logger({
+          type: "dispatch",
+          dispatchId,
+          action,
+          payload
+        });
       if (this.handlers.hasOwnProperty(action)) {
         const promises = [];
-        this.handlers[action].forEach(handler =>
-          // IE 11 supports Set.forEach but not Set.values
-          promises.push(handler(this, payload))
+        this.handlers[action].forEach((
+          handler // Set.forEach for IE11
+        ) =>
+          promises.push(
+            handler(
+              {
+                // the public Store interface provided to actions
+                update: mutator =>
+                  this.update(mutator, { action, payload, dispatchId }),
+                getState: this.getState,
+                actions: this.actions,
+                meta: this.meta
+              },
+              payload
+            )
+          )
         );
         return Promise.all(promises);
       } else {
@@ -106,13 +141,25 @@ const createStore = () => {
       }
     };
 
+    getState = (name, item) => {
+      if (name) {
+        if (item) {
+          return this.state[name][item];
+        } else {
+          return this.state[name];
+        }
+      } else {
+        return this.state;
+      }
+    };
+
     read = (name, item) => {
       // short-circuit return when already initialized
-      if (this.state.state.hasOwnProperty(name)) {
+      if (this.state.hasOwnProperty(name)) {
         if (item === undefined) {
-          return this.state.state[name];
-        } else if (this.state.state[name].hasOwnProperty(item)) {
-          return this.state.state[name][item];
+          return this.state[name];
+        } else if (this.state[name].hasOwnProperty(item)) {
+          return this.state[name][item];
         }
       }
       if (!this._pendingInitializations.hasOwnProperty(name)) {
@@ -157,9 +204,9 @@ const createStore = () => {
         } else if (value === true) {
           // resolved initializer (unreached due to short-circuit at top of method)
           if (item === undefined) {
-            return this.state.state[name];
+            return this.state[name];
           } else {
-            return this.state.state[name][item];
+            return this.state[name][item];
           }
         } else {
           // throw initializer error to error boundary
@@ -172,34 +219,39 @@ const createStore = () => {
       }
     };
 
-    replace = replacer =>
+    update = (mutator, context) =>
+      // use immer copy-on-write (mutate draft) semantics to update current state
       new Promise(resolve =>
-        // use traditional react setState semantics to replace current state with
-        // new state that uses structural sharing where values haven't changed
         this.setState(
-          ({ state: prevState, ...rest }) => ({
-            state: replacer(prevState),
-            ...rest
-          }),
-          resolve
-        )
-      );
-
-    update = mutator =>
-      new Promise(resolve =>
-        // use immer copy-on-write (mutate draft) semantics to update current state
-        this.setState(
-          ({ state: prevState, ...rest }) => ({
-            state: produce(prevState, draftState => mutator(draftState)),
-            ...rest
-          }),
+          prevState =>
+            produce(
+              prevState,
+              draftState => mutator(draftState),
+              this.props.unstable_logger
+                ? (changes, undos) => {
+                    this.props.unstable_logger({
+                      type: "update",
+                      ...context,
+                      changes,
+                      undos
+                    });
+                  }
+                : undefined
+            ),
           resolve
         )
       );
 
     render() {
       return (
-        <StoreContext.Provider value={this.state}>
+        <StoreContext.Provider
+          value={{
+            read: this.read,
+            register: this.register,
+            actions: this.actions,
+            state: this.state
+          }}
+        >
           {this.props.children}
         </StoreContext.Provider>
       );

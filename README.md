@@ -95,8 +95,6 @@ async function loadQuote(store, quoteId) {
 
 Action handlers update the state of the store with the `store.update` method. The update method takes a *function of the current state* as its argument. The **updater function must MUTATE the provided state object** ([examples](https://github.com/mweststrate/immer#example-patterns)) which is an Immer draft state that will produce an *immutable update to the React component state* managed by `Store`.
 
-Alternatively, the `store.replace` uses React's conventional state setting semantics. In this mode, the supplied replacer function receives current state as its argument and returns the next state: `(prevState) => nextState`. The **replacer function must NOT MUTATE `prevState`**, but instead *must return a new state object that structurally shares previous state objects where possible*.
-
 Actions can make asynchronous calls like fetching data from a remote server, update the store state as many times as desired, or dispatch other actions using the pattern `store.actions.someAction(payload)` (either `await`-ed or not as needed).
 
 To keep your code organized, you might want to define your actions in a separate module that you import and feed to the `Store` component:
@@ -172,7 +170,7 @@ What if `quoteId` hasn't been loaded into `quotes` yet? You can declare a `Store
   </Store>,
 ```
 
-To use this feature, you will also need to insert at least one [`Suspense`](https://reactjs.org/docs/code-splitting.html#suspense) component with a `fallback` somewhere in the component tree above the `UseStore` component or the component using the `useStore` hook. The Suspense component will suspend rendering of its children while the item is being initialized.
+To use this feature, you will also need to insert at least one [`Suspense`](https://reactjs.org/docs/code-splitting.html#suspense) component with a `fallback` somewhere in the component tree **above** the `UseStore` component or the component using the `useStore` hook and **below** the `Store`. The Suspense component will suspend rendering of its children while the item is being initialized.
 
 ```javascript
 import createStore from "react-evoke";
@@ -188,7 +186,6 @@ ReactDOM.render(
   document.getElementById("root")
 );
 ```
-
 
 ## ErrorBoundary
 

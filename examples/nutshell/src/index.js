@@ -103,26 +103,25 @@ function CurrentQuote() {
 // the "application"
 function App() {
   return (
-    <Suspense>
-      <Store
-        actions={{
-          loadQuote,
-          nextQuote
-        }}
-        initializers={{
-          quotes: "loadQuote"
-        }}
-        initialState={{
-          quoteId: 1
-        }}
-      >
-        <ErrorBoundary fallback={ErrorMessage}>
-          <Suspense fallback={<p>Loading...</p>}>
-            <CurrentQuote />
-          </Suspense>
-        </ErrorBoundary>
-      </Store>
-    </Suspense>
+    <Store
+      actions={{
+        loadQuote,
+        nextQuote
+      }}
+      initializers={{
+        quotes: "loadQuote"
+      }}
+      initialState={{
+        quoteId: 1
+      }}
+      unstable_logger={event => console.log(event)}
+    >
+      <ErrorBoundary fallback={ErrorMessage}>
+        <Suspense fallback={<p>Loading...</p>}>
+          <CurrentQuote />
+        </Suspense>
+      </ErrorBoundary>
+    </Store>
   );
 }
 
