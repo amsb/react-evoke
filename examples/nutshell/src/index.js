@@ -114,7 +114,7 @@ function App() {
       initialState={{
         quoteId: 1
       }}
-      unstable_logger={event => console.log(event)}
+      unstable_logger={({ type, action, ...info}) => console.log(type, action, info)}
     >
       <ErrorBoundary fallback={ErrorMessage}>
         <Suspense fallback={<p>Loading...</p>}>

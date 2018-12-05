@@ -79,7 +79,7 @@ const createStore = () => {
       Object.keys(this._pendingInitializations).forEach(name => {
         Object.keys(this._pendingInitializations[name]).forEach(item => {
           if (
-            this.state[name] &&
+            this.state[name] != null &&
             this.state[name].hasOwnProperty(item)
           ) {
             delete this._pendingInitializations[name][item];
@@ -154,7 +154,7 @@ const createStore = () => {
 
     read = (name, item) => {
       // short-circuit return when already initialized
-      if (this.state[name]) { // != null or undefined
+      if (this.state[name] != null) {
         if (item === undefined) {
           return this.state[name];
         } else if (this.state[name].hasOwnProperty(item)) {
@@ -179,7 +179,7 @@ const createStore = () => {
       }
       const cacheKeyForItem = item;
       const value = cache[cacheKeyForItem];
-      if (value === undefined) {
+      if (value === undefined || (value === true && !this.state[name])) {
         const promise = new Promise(resolve =>
           // avoid updating state during existing state transition by deferring dispatch
           // until after promise is thrown and the calling render function exits.
@@ -203,7 +203,11 @@ const createStore = () => {
         } else if (value === true) {
           // resolved initializer (unreached due to short-circuit at top of method)
           if (item === undefined) {
-            return this.state[name];
+            if (this.state[name]) {
+              return this.state[name];
+            } else {
+              throw TypeError(`Initialized value of ${name} cannot be null`)
+            }
           } else {
             return this.state[name][item];
           }
