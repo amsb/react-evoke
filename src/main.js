@@ -10,20 +10,27 @@ function isPromise(obj) {
   );
 }
 
+const ALL_ITEMS = undefined;
+const UNITIALIZED = null;
+
 const createStore = () => {
   let NAME_COUNT = 0;
   const NAME_BITS = {};
 
-  function getChangedBits({ state: prev }, { state: next }) {
+  // calculate changed bits for StoreContext, whose value is
+  // { state, actions, register, read }
+  function getChangedBits({ state: prevState }, { state: nextState }) {
     let mask = 0;
-    for (let id in next) {
-      if (prev[id] !== next[id]) {
+    for (let id in nextState) {
+      if (prevState[id] !== nextState[id]) {
         mask |= NAME_BITS[id];
       }
     }
     return mask;
   }
 
+  // get the observed bits (bitmask) for a given top-level name
+  // note: every 32nd name will share a bitmask
   function getObservedBits(name) {
     if (NAME_BITS.hasOwnProperty(name)) {
       return NAME_BITS[name];
@@ -32,8 +39,10 @@ const createStore = () => {
     }
   }
 
+  // create context for sharing THIS store
   const StoreContext = React.createContext({}, getChangedBits);
 
+  // Store component
   class Store extends React.Component {
     static propTypes = {
       actions: PropTypes.object,
@@ -65,6 +74,8 @@ const createStore = () => {
     }
 
     componentWillUnmount() {
+      // alert developer of an unmount during a pending initialization so they can
+      // add the missing Suspense component
       if (
         process.env.NODE_ENV !== "production" &&
         Object.keys(this._pendingInitializations).length
@@ -76,12 +87,12 @@ const createStore = () => {
     }
 
     componentDidUpdate() {
+      // clear pending initializations if resolved after Store update
       Object.keys(this._pendingInitializations).forEach(name => {
         Object.keys(this._pendingInitializations[name]).forEach(item => {
-          if (
-            this.state[name] != null &&
-            this.state[name].hasOwnProperty(item)
-          ) {
+          if (this._pendingInitializations[name][item] === true) {
+            // only delete successfully resolved promises, leave
+            // pending promises and errors
             delete this._pendingInitializations[name][item];
             if (!Object.keys(this._pendingInitializations[name]).length) {
               delete this._pendingInitializations[name];
@@ -118,7 +129,7 @@ const createStore = () => {
           promises.push(
             handler(
               {
-                // the public Store interface provided to actions
+                // only provide a public Store interface to actions
                 update: mutator =>
                   this.update(mutator, { action, payload, dispatchId }),
                 // set: replacer =>
@@ -141,6 +152,9 @@ const createStore = () => {
     };
 
     getState = (name, item) => {
+      // provide abstract public interface for read-only access state
+      // (in case we change how we manage it. for example, we may use
+      // react-cache when it supports invalidation).
       if (name) {
         if (item) {
           return this.state[name][item];
@@ -152,22 +166,27 @@ const createStore = () => {
       }
     };
 
-    read = (name, item) => {
+    read = (name, item = ALL_ITEMS) => {
       // short-circuit return when already initialized
-      if (this.state[name] != null) {
-        if (item === undefined) {
+      if (this.state.hasOwnProperty(name) && this.state[name] != UNITIALIZED) { // eslint-disable-line eqeqeq
+        if (item === ALL_ITEMS) {
           return this.state[name];
         } else if (this.state[name].hasOwnProperty(item)) {
           return this.state[name][item];
         }
+        // otherwise this.state[name][item] isn't initialized
       }
+
+      // create temporary cache for pending initialization
       if (!this._pendingInitializations.hasOwnProperty(name)) {
         this._pendingInitializations[name] = {};
       }
       const cache = this._pendingInitializations[name];
+
+      // get initialization action
       const action = this.props.initializers[name];
       if (!action) {
-        if (item === undefined) {
+        if (item === ALL_ITEMS) {
           throw Error(
             `Cannot use undefined ${name} without Store initializer for ${name}`
           );
@@ -177,17 +196,31 @@ const createStore = () => {
           );
         }
       }
-      const cacheKeyForItem = item;
+
+      // retrieve pending cache state for this item
+      const cacheKeyForItem = item; // could be ALL_ITEMS (=== undefined)
       const value = cache[cacheKeyForItem];
-      if (value === undefined || (value === true && !this.state[name])) {
+      if (
+        value === undefined ||
+        (value === true &&
+          (!this.state.hasOwnProperty(name) || this.state[name] == UNITIALIZED)) // eslint-disable-line eqeqeq
+      ) {
+        // if there is no pending cache entry for this item
+        // OR it resolved without error and state still uninitialized
+        // warning: we may not want to be this lenient but it can be helpful
+        // for signaling that a retry is worthwhile
         const promise = new Promise(resolve =>
           // avoid updating state during existing state transition by deferring dispatch
           // until after promise is thrown and the calling render function exits.
           // https://developer.mozilla.org/en-US/docs/Web/JavaScript/EventLoop#Zero_delays
           setTimeout(resolve, 0)
         ).then(() => this.dispatch(action, item));
+
+        // put pending promise in the cahce
         cache[cacheKeyForItem] = promise;
-        promise.then(
+
+        // suspend render and update cache when resolved
+        throw promise.then(
           value => {
             cache[cacheKeyForItem] = true;
           },
@@ -195,18 +228,21 @@ const createStore = () => {
             cache[cacheKeyForItem] = error;
           }
         );
-        throw promise;
       } else {
+        // item already in pending initialization cache
         if (isPromise(value)) {
-          // suspend with pending initializer promise
+          // re-suspend with pending initializer promise
           throw value;
         } else if (value === true) {
-          // resolved initializer (unreached due to short-circuit at top of method)
-          if (item === undefined) {
-            if (this.state[name]) {
+          // just in case we get here with a resolved initializer
+          if (item === ALL_ITEMS) {
+            if (
+              this.state.hasOwnProperty(name) &&
+              this.state[name] != UNITIALIZED // eslint-disable-line eqeqeq
+            ) {
               return this.state[name];
             } else {
-              throw TypeError(`Initialized value of ${name} cannot be null`)
+              throw TypeError(`Initialized value of ${name} cannot be null`);
             }
           } else {
             return this.state[name][item];
@@ -265,10 +301,10 @@ const createStore = () => {
       return (
         <StoreContext.Provider
           value={{
-            read: this.read,
-            register: this.register,
+            state: this.state,
             actions: this.actions,
-            state: this.state
+            register: this.register,
+            read: this.read
           }}
         >
           {this.props.children}
