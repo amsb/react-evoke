@@ -112,7 +112,7 @@ const createStore = () => {
       });
     };
 
-    dispatch = (action, payload) => {
+    dispatch = (action, ...payload) => {
       const dispatchId = this._dispatchId++;
       this.props.unstable_logger &&
         this.props.unstable_logger({
@@ -138,7 +138,7 @@ const createStore = () => {
                 actions: this.actions,
                 meta: this.meta
               },
-              payload
+              ...payload
             )
           )
         );
