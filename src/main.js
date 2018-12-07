@@ -379,21 +379,28 @@ const createStore = () => {
       ])
     };
 
+    constructor(props) {
+      super(props);
+      const Children = ({ value, actions }) =>
+        value != null
+          ? this.props.children(value, actions)
+          : this.props.children(actions);
+      this.Children = React.memo(Children);
+    }
+
     render() {
       return (
         <StoreContext.Consumer
           unstable_observedBits={getObservedBits(this.props.name || 0)}
         >
-          {store => {
-            if (this.props.name) {
-              return this.props.children(
-                store.read(this.props.name, this.props.item),
-                store.actions
-              );
-            } else {
-              return this.props.children(store.actions);
-            }
-          }}
+          {store => (
+            <this.Children
+              value={
+                this.props.name && store.read(this.props.name, this.props.item)
+              }
+              actions={store.actions}
+            />
+          )}
         </StoreContext.Consumer>
       );
     }
