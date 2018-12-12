@@ -30,7 +30,9 @@ const createStore = () => {
   }
 
   // get the observed bits (bitmask) for a given top-level name
-  // note: every 32nd name will share a bitmask
+  // notes:
+  //   1. every 32nd name will share a bitmask
+  //   2. multiple instances of Store will share this bitmask registry
   function getObservedBits(name) {
     if (NAME_BITS.hasOwnProperty(name)) {
       return NAME_BITS[name];
@@ -142,12 +144,17 @@ const createStore = () => {
             )
           )
         );
-        return Promise.all(promises);
+        return Promise.all(promises)
+          .then(values => dispatchId)
+          .catch(error => {
+            error.dispatchId = dispatchId;
+            return error;
+          });
       } else {
         if (process.env.NODE_ENV !== "production") {
           console.warn(`Unregistered action ${action} dispatched`);
         }
-        return Promise.resolve(); // ignore undeclared actions
+        return Promise.resolve(null); // ignore undeclared actions
       }
     };
 
