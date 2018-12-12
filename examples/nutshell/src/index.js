@@ -42,11 +42,21 @@ async function nextQuote(store) {
   });
 }
 
+async function toggleColor(store) {
+  await store.update(state => {
+    if (state.color === "blue") {
+      state.color = "green";
+    } else {
+      state.color = "blue";
+    }
+  });
+}
+
 // simple component to format quote
-const Quote = React.memo(({ title, description }) => (
+const Quote = React.memo(({ title, description, color }) => (
   <>
     <h4>{title}</h4>
-    <p>{description}</p>
+    <p style={{ color: color }}>{description}</p>
   </>
 ));
 
@@ -54,11 +64,15 @@ function QuoteView({ quoteId }) {
   return (
     <UseStore name="quotes" item={quoteId}>
       {(quote, { nextQuote }) => (
-        <>
-          <Quote {...quote} />
-          {/* <UseStore name="quoteLengths" item={quoteId}>{quoteLength => <p>Quote is {quoteLength} characters long.</p>}</UseStore> */}
-          <button onClick={() => nextQuote()}>Next Quote</button>
-        </>
+        <UseStore name="color">
+          {(color, { toggleColor }) => (
+            <>
+              <Quote {...quote} color={color} />
+              <button onClick={() => nextQuote()}>Next Quote</button>{" "}
+              <button onClick={() => toggleColor()}>Toggle Color</button>
+            </>
+          )}
+        </UseStore>
       )}
     </UseStore>
   );
@@ -118,14 +132,16 @@ function App() {
     <Store
       actions={{
         loadQuote,
-        nextQuote
+        nextQuote,
+        toggleColor
       }}
       initializers={{
         quotes: "loadQuote",
         numQuotes: "loadQuote"
       }}
       initialState={{
-        quoteId: 1
+        quoteId: 1,
+        color: "blue"
       }}
       unstable_derivedState={{
         quoteLengths: (getState, quoteId) => {
