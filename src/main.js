@@ -47,7 +47,7 @@ const createStore = () => {
     }
   }
 
-  function setObservedBits(name, item, dependencies = []) {
+  function setDependentObservedBits(name, item, dependencies = []) {
     let mask = 0;
     dependencies.forEach(([depName, depItem]) => {
       mask |= NAME_BITS[depName];
@@ -198,7 +198,7 @@ const createStore = () => {
     registerDerivedState = derivedState => {
       Object.entries(derivedState).forEach(([name, deriver]) => {
         this.derivedState[name] = deriver;
-        NAME_BITS[name] = 1 << 31; // dependent on everything by default
+        NAME_BITS[name] = 1 << 31; // dependent on everything until first executed
       });
     };
 
@@ -231,8 +231,7 @@ const createStore = () => {
         };
         try {
           const derivedValue = this.derivedState[name](getState, item);
-          console.log(`read(${name}, ${item})`)
-          setObservedBits(name, item, dependencies);
+          setDependentObservedBits(name, item, dependencies);
           return derivedValue;
         } catch (error) {
           if (error instanceof UninitializedError) {
@@ -455,15 +454,6 @@ const createStore = () => {
       ])
     };
 
-    constructor(props) {
-      super(props);
-      const Children = ({ value, actions }) =>
-        value != null
-          ? this.props.children(value, actions)
-          : this.props.children(actions);
-      this.Children = React.memo(Children);
-    }
-
     render() {
       return (
         <StoreContext.Consumer
@@ -473,14 +463,14 @@ const createStore = () => {
               : 0
           }
         >
-          {store => (
-            <this.Children
-              value={
-                this.props.name && store.read(this.props.name, this.props.item)
-              }
-              actions={store.actions}
-            />
-          )}
+          {store =>
+            this.props.name
+              ? this.props.children(
+                  store.read(this.props.name, this.props.item),
+                  store.actions
+                )
+              : this.props.children(store.actions)
+          }
         </StoreContext.Consumer>
       );
     }
