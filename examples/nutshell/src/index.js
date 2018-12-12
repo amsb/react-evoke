@@ -11,10 +11,10 @@ const MAX_QUOTE_ID = quotes.length + 1;
 
 // fetch quote data via fake network request
 function fetchQuote(quoteId) {
-  if (Math.random() > 0.75) {
-    // randomly return error because that's what happens IRL
-    return Promise.reject(Error("Network Error"));
-  }
+  // if (Math.random() > 0.75) {
+  //   // randomly return error because that's what happens IRL
+  //   return Promise.reject(Error("Network Error"));
+  // }
   return new Promise(resolve =>
     // fake a slow network request
     setTimeout(() => resolve(quotes[quoteId - 1]), 1000)
@@ -56,6 +56,7 @@ function QuoteView({ quoteId }) {
       {(quote, { nextQuote }) => (
         <>
           <Quote {...quote} />
+          {/* <UseStore name="quoteLengths" item={quoteId}>{quoteLength => <p>Quote is {quoteLength} characters long.</p>}</UseStore> */}
           <button onClick={() => nextQuote()}>Next Quote</button>
         </>
       )}
@@ -88,9 +89,20 @@ function ErrorMessage({ state, error, clearError }) {
 // read current quoteId from Store and render
 function CurrentQuote() {
   return (
-    <UseStore name="quoteId">
-      {quoteId => <QuoteView quoteId={quoteId} />}
-    </UseStore>
+    <>
+      <UseStore name="quoteId">
+        {quoteId => (
+          <>
+            <UseStore name="quoteLengths" item={quoteId}>
+              {quoteLength => (
+                <p>The following quote is {quoteLength} characters long:</p>
+              )}
+            </UseStore>
+            <QuoteView quoteId={quoteId} />
+          </>
+        )}
+      </UseStore>
+    </>
   );
 }
 
@@ -109,12 +121,20 @@ function App() {
         nextQuote
       }}
       initializers={{
-        quotes: "loadQuote"
+        quotes: "loadQuote",
+        numQuotes: "loadQuote"
       }}
       initialState={{
         quoteId: 1
       }}
-      unstable_logger={({ type, action, ...info}) => console.log(type, action, info)}
+      unstable_derivedState={{
+        quoteLengths: (getState, quoteId) => {
+          return getState("quotes", quoteId).title.length;
+        }
+      }}
+      unstable_logger={({ type, action, ...info }) =>
+        console.log(type, action, info)
+      }
     >
       <ErrorBoundary fallback={ErrorMessage}>
         <Suspense fallback={<p>Loading...</p>}>

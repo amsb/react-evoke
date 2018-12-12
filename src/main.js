@@ -11,7 +11,15 @@ function isPromise(obj) {
 }
 
 const ALL_ITEMS = undefined;
-const UNITIALIZED = null;
+const UNINITIALIZED = null;
+
+class UninitializedError extends Error {
+  constructor(name, item) {
+    super();
+    this.uninitializedName = name;
+    this.uninitializedItem = item;
+  }
+}
 
 const createStore = () => {
   let NAME_COUNT = 0;
@@ -30,15 +38,21 @@ const createStore = () => {
   }
 
   // get the observed bits (bitmask) for a given top-level name
-  // notes:
-  //   1. every 32nd name will share a bitmask
-  //   2. multiple instances of Store will share this bitmask registry
-  function getObservedBits(name) {
+  // note: every 32nd name will share a bitmask
+  function getObservedBits(name, item) {
     if (NAME_BITS.hasOwnProperty(name)) {
       return NAME_BITS[name];
     } else {
       return (NAME_BITS[name] = 1 << NAME_COUNT++);
     }
+  }
+
+  function setObservedBits(name, item, dependencies = []) {
+    let mask = 0;
+    dependencies.forEach(([depName, depItem]) => {
+      mask |= NAME_BITS[depName];
+    });
+    NAME_BITS[name] = mask;
   }
 
   // create context for sharing THIS store
@@ -50,6 +64,7 @@ const createStore = () => {
       actions: PropTypes.object,
       initializers: PropTypes.object,
       initialState: PropTypes.object,
+      unstable_derivedState: PropTypes.object,
       unstable_logger: PropTypes.func,
       meta: PropTypes.object
     };
@@ -66,6 +81,9 @@ const createStore = () => {
       } else {
         this.state = {};
       }
+
+      this.derivedState = {};
+      this.registerDerivedState(props.unstable_derivedState);
 
       // meta state (api objects, etc.) -- mutable!
       this.meta = props.meta || {};
@@ -164,7 +182,11 @@ const createStore = () => {
       // react-cache when it supports invalidation).
       if (name) {
         if (item) {
-          return this.state[name][item];
+          if (this.state.hasOwnProperty(name)) {
+            return this.state[name][item];
+          } else {
+            return undefined;
+          }
         } else {
           return this.state[name];
         }
@@ -173,9 +195,19 @@ const createStore = () => {
       }
     };
 
+    registerDerivedState = derivedState => {
+      Object.entries(derivedState).forEach(([name, deriver]) => {
+        this.derivedState[name] = deriver;
+        NAME_BITS[name] = 1 << 31; // dependent on everything by default
+      });
+    };
+
     read = (name, item = ALL_ITEMS) => {
       // short-circuit return when already initialized
-      if (this.state.hasOwnProperty(name) && this.state[name] != UNITIALIZED) { // eslint-disable-line eqeqeq
+      if (
+        this.state.hasOwnProperty(name) &&
+        this.state[name] != UNINITIALIZED // eslint-disable-line eqeqeq
+      ) {
         if (item === ALL_ITEMS) {
           return this.state[name];
         } else if (this.state[name].hasOwnProperty(item)) {
@@ -184,11 +216,33 @@ const createStore = () => {
         // otherwise this.state[name][item] isn't initialized
       }
 
-      // create temporary cache for pending initialization
-      if (!this._pendingInitializations.hasOwnProperty(name)) {
-        this._pendingInitializations[name] = {};
+      // value isn't in store, check for derived state
+      if (this.derivedState.hasOwnProperty(name)) {
+        const dependencies = [];
+        const getState = (name, item) => {
+          dependencies.push([name, item]);
+          const value = this.getState(name, item);
+          // eslint-disable-next-line eqeqeq
+          if (value == UNINITIALIZED) {
+            throw new UninitializedError(name, item);
+          } else {
+            return value;
+          }
+        };
+        try {
+          const derivedValue = this.derivedState[name](getState, item);
+          console.log(`read(${name}, ${item})`)
+          setObservedBits(name, item, dependencies);
+          return derivedValue;
+        } catch (error) {
+          if (error instanceof UninitializedError) {
+            name = error.uninitializedName;
+            item = error.uninitializedItem;
+          } else {
+            throw error;
+          }
+        }
       }
-      const cache = this._pendingInitializations[name];
 
       // get initialization action
       const action = this.props.initializers[name];
@@ -204,18 +258,32 @@ const createStore = () => {
         }
       }
 
+      // create temporary cache for pending initialization
+      if (!this._pendingInitializations.hasOwnProperty(name)) {
+        this._pendingInitializations[name] = {};
+      }
+      const cache = this._pendingInitializations[name];
+
       // retrieve pending cache state for this item
       const cacheKeyForItem = item; // could be ALL_ITEMS (=== undefined)
       const value = cache[cacheKeyForItem];
       if (
         value === undefined ||
         (value === true &&
-          (!this.state.hasOwnProperty(name) || this.state[name] == UNITIALIZED)) // eslint-disable-line eqeqeq
+          (!this.state.hasOwnProperty(name) ||
+            this.state[name] == UNINITIALIZED)) // eslint-disable-line eqeqeq
       ) {
         // if there is no pending cache entry for this item
         // OR it resolved without error and state still uninitialized
         // warning: we may not want to be this lenient but it can be helpful
         // for signaling that a retry is worthwhile
+        this.props.unstable_logger &&
+          this.props.unstable_logger({
+            type: "initialize",
+            action,
+            payload: item,
+            initializer: name
+          });
         const promise = new Promise(resolve =>
           // avoid updating state during existing state transition by deferring dispatch
           // until after promise is thrown and the calling render function exits.
@@ -241,11 +309,12 @@ const createStore = () => {
           // re-suspend with pending initializer promise
           throw value;
         } else if (value === true) {
+          console.log("NEVER!!!");
           // just in case we get here with a resolved initializer
           if (item === ALL_ITEMS) {
             if (
               this.state.hasOwnProperty(name) &&
-              this.state[name] != UNITIALIZED // eslint-disable-line eqeqeq
+              this.state[name] != UNINITIALIZED // eslint-disable-line eqeqeq
             ) {
               return this.state[name];
             } else {
@@ -398,7 +467,11 @@ const createStore = () => {
     render() {
       return (
         <StoreContext.Consumer
-          unstable_observedBits={getObservedBits(this.props.name || 0)}
+          unstable_observedBits={
+            this.props.name
+              ? getObservedBits(this.props.name, this.props.item)
+              : 0
+          }
         >
           {store => (
             <this.Children
@@ -421,7 +494,10 @@ const createStore = () => {
 
   if (React.useContext) {
     function useStore(name, item) {
-      const store = React.useContext(StoreContext, getObservedBits(name || 0));
+      const store = React.useContext(
+        StoreContext,
+        this.props.name ? getObservedBits(name, item) : 0
+      );
       if (name) {
         return [store.read(name, item), store.actions];
       } else {
