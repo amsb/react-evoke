@@ -21,7 +21,28 @@ class UninitializedError extends Error {
   }
 }
 
-const createStore = () => {
+const shallowEqual = (obj1, obj2) => {
+  const keys = Object.keys(obj1);
+  return (
+    keys.length === Object.keys(obj2).length &&
+    keys.every(key => obj1[key] === obj2[key])
+  );
+};
+
+function memoizeDeriver(select, derive) {
+  let lastState = null;
+  let lastValue = null;
+  return function(getState, item) {
+    const state = select(getState, item);
+    if (!(lastState && shallowEqual(state, lastState))) {
+      lastValue = derive(state);
+    }
+    lastState = state;
+    return lastValue;
+  };
+}
+
+const createStore = defaultProps => {
   let NAME_COUNT = 0;
   const NAME_BITS = {};
 
@@ -61,6 +82,8 @@ const createStore = () => {
       meta: PropTypes.object
     };
 
+    static defaultProps = defaultProps;
+
     constructor(props) {
       super(props);
 
@@ -88,14 +111,12 @@ const createStore = () => {
     componentWillUnmount() {
       // alert developer of an unmount during a pending initialization so they can
       // add the missing Suspense component
-      if (
-        process.env.NODE_ENV !== "production" &&
-        Object.keys(this._pendingInitializations).length
-      ) {
-        console.error(
-          "Store unmounted during initialization. It must have a Suspense component below it."
-        );
-      }
+      if (process.env.NODE_ENV !== "production")
+        if (Object.keys(this._pendingInitializations).length) {
+          console.error(
+            "Store unmounted during initialization. It must have a Suspense component below it."
+          );
+        }
     }
 
     componentDidUpdate() {
@@ -189,7 +210,11 @@ const createStore = () => {
 
     registerDerivedState = derivedState => {
       Object.entries(derivedState).forEach(([name, deriver]) => {
-        this.derivedState[name] = deriver;
+        if (Array.isArray(deriver)) {
+          this.derivedState[name] = memoizeDeriver(...deriver);
+        } else {
+          this.derivedState[name] = deriver;
+        }
         NAME_BITS[name] = 1 << 31; // dependent on everything until first executed
       });
     };
@@ -223,6 +248,14 @@ const createStore = () => {
         };
         try {
           const derivedValue = this.derivedState[name](getState, item);
+          if (process.env.NODE_ENV !== "production") {
+            if (isPromise(derivedValue)) {
+              console.error(
+                "derivedState state functions cannot be async, please do async work in actions"
+              );
+              throw new Error("Invalid derivedState");
+            }
+          }
           NAME_BITS[name] = mask; // update derivedState bitmask w/dependencies
           return derivedValue;
         } catch (error) {
@@ -301,7 +334,7 @@ const createStore = () => {
           throw value;
         } else if (value === true) {
           // noop throw to trigger short-circuit/synchronous read
-          throw Promise.resolve()
+          throw Promise.resolve();
         } else {
           // throw initializer error to error boundary
           value.isInitializer = true;

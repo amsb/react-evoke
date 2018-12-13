@@ -1,13 +1,13 @@
 import React, { Suspense } from "react";
 import ReactDOM from "react-dom";
-import createStore from "./react-evoke";
+import createStore from "react-evoke";
 import quotes from "../node_modules/pragmatic-motd/data/quotes.json";
 
 const { Store, UseStore, ErrorBoundary } = createStore();
 // // Experimental Hooks Alternative for React 16.7.0-alpha:
 // const { Store, ErrorBoundary, useStore } = createStore();
 
-const MAX_QUOTE_ID = quotes.length + 1;
+const MAX_QUOTE_ID = quotes.length;
 
 // fetch quote data via fake network request
 function fetchQuote(quoteId) {
@@ -42,6 +42,17 @@ async function nextQuote(store) {
   });
 }
 
+// define action the move to previous quote
+async function prevQuote(store) {
+  await store.update(state => {
+    state.quoteId = state.quoteId - 1;
+    if (state.quoteId <= 0) {
+      state.quoteId = MAX_QUOTE_ID;
+    }
+  });
+}
+
+// define action to toggle color
 async function toggleColor(store) {
   await store.update(state => {
     if (state.color === "blue") {
@@ -63,11 +74,12 @@ const Quote = React.memo(({ title, description, color }) => (
 function QuoteView({ quoteId }) {
   return (
     <UseStore name="quotes" item={quoteId}>
-      {(quote, { nextQuote }) => (
+      {(quote, { prevQuote, nextQuote }) => (
         <UseStore name="color">
           {(color, { toggleColor }) => (
             <>
               <Quote {...quote} color={color} />
+              <button onClick={() => prevQuote()}>Previous Quote</button>{" "}
               <button onClick={() => nextQuote()}>Next Quote</button>{" "}
               <button onClick={() => toggleColor()}>Toggle Color</button>
             </>
@@ -132,6 +144,7 @@ function App() {
     <Store
       actions={{
         loadQuote,
+        prevQuote,
         nextQuote,
         toggleColor
       }}
@@ -143,10 +156,18 @@ function App() {
         quoteId: 1,
         color: "blue"
       }}
+      // unstable_derivedState={{
+      //   quoteLengths: (getState, quoteId) => {
+      //     return getState("quotes", quoteId).description.length;
+      //   }
+      // }}
       unstable_derivedState={{
-        quoteLengths: (getState, quoteId) => {
-          return getState("quotes", quoteId).description.length;
-        }
+        quoteLengths: [
+          (getState, quoteId) => ({
+            description: getState("quotes", quoteId).description
+          }),
+          ({ description }) => description.length
+        ]
       }}
       unstable_logger={({ type, action, ...info }) =>
         console.log(type, action, info)
