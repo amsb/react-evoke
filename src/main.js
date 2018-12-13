@@ -47,14 +47,6 @@ const createStore = () => {
     }
   }
 
-  function setDependentObservedBits(name, item, dependencies = []) {
-    let mask = 0;
-    dependencies.forEach(([depName, depItem]) => {
-      mask |= NAME_BITS[depName];
-    });
-    NAME_BITS[name] = mask;
-  }
-
   // create context for sharing THIS store
   const StoreContext = React.createContext({}, getChangedBits);
 
@@ -218,9 +210,9 @@ const createStore = () => {
 
       // value isn't in store, check for derived state
       if (this.derivedState.hasOwnProperty(name)) {
-        const dependencies = [];
+        let mask = 0;
         const getState = (name, item) => {
-          dependencies.push([name, item]);
+          mask |= NAME_BITS[name];
           const value = this.getState(name, item);
           // eslint-disable-next-line eqeqeq
           if (value == UNINITIALIZED) {
@@ -231,7 +223,7 @@ const createStore = () => {
         };
         try {
           const derivedValue = this.derivedState[name](getState, item);
-          setDependentObservedBits(name, item, dependencies);
+          NAME_BITS[name] = mask; // update derivedState bitmask w/dependencies
           return derivedValue;
         } catch (error) {
           if (error instanceof UninitializedError) {
@@ -308,20 +300,8 @@ const createStore = () => {
           // re-suspend with pending initializer promise
           throw value;
         } else if (value === true) {
-          console.log("NEVER!!!");
-          // just in case we get here with a resolved initializer
-          if (item === ALL_ITEMS) {
-            if (
-              this.state.hasOwnProperty(name) &&
-              this.state[name] != UNINITIALIZED // eslint-disable-line eqeqeq
-            ) {
-              return this.state[name];
-            } else {
-              throw TypeError(`Initialized value of ${name} cannot be null`);
-            }
-          } else {
-            return this.state[name][item];
-          }
+          // noop throw to trigger short-circuit/synchronous read
+          throw Promise.resolve()
         } else {
           // throw initializer error to error boundary
           value.isInitializer = true;

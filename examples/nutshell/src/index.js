@@ -1,6 +1,6 @@
 import React, { Suspense } from "react";
 import ReactDOM from "react-dom";
-import createStore from "react-evoke";
+import createStore from "./react-evoke";
 import quotes from "../node_modules/pragmatic-motd/data/quotes.json";
 
 const { Store, UseStore, ErrorBoundary } = createStore();
@@ -145,7 +145,7 @@ function App() {
       }}
       unstable_derivedState={{
         quoteLengths: (getState, quoteId) => {
-          return getState("quotes", quoteId).title.length;
+          return getState("quotes", quoteId).description.length;
         }
       }}
       unstable_logger={({ type, action, ...info }) =>
