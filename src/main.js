@@ -98,7 +98,9 @@ const createStore = defaultProps => {
       }
 
       this.derivedState = {};
-      this.registerDerivedState(props.unstable_derivedState);
+      if (props.unstable_derivedState) {
+        this.registerDerivedState(props.unstable_derivedState);
+      }
 
       // meta state (api objects, etc.) -- mutable!
       this.meta = props.meta || {};
