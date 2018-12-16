@@ -1,6 +1,7 @@
 <div align="center">
   <br><br>
   <img src="https://raw.githubusercontent.com/amsb/react-evoke/master/logo.png" alt="Evoke" width="400">
+  <br>
   <br><br>
 </div>
 
@@ -50,7 +51,7 @@ On first render, the quote data for `quoteId` `1` isn't yet available, so the re
 
 You can [browse a simple yet complete example](https://github.com/amsb/react-evoke/blob/master/examples/nutshell/src/index.js), or walk through how to use Evoke block by block below.
 
-## Guide
+## Overview
 
 ### Store
 Using Evoke involves three primary building blocks:
@@ -239,7 +240,7 @@ The `ErrorBoundary` component must be a descendant of the Store component. The `
 * `error` is the error object that was thrown.
 * `clearError` is an argument-less function that clears the error (and effectively "retries") *when the error was thrown by an initializer*.
 
-## Advanced Features
+## Advanced Usage
 
 In addition to the basic `actions`, `initialState`, and `initializers`, the `Store` supports a few more advanced (but optional!) features that can be configured through its props.
 
@@ -266,6 +267,10 @@ As an example, consider the situation where you have a collection of people and 
 
 But what if the "people" collection hasn't been initialized yet? No problem! If `getState` discovers that the requested data isn't initialized, it will kick-off the Suspense mediated initialization process and try again. **Initialization will occur sequentially in the order of evaluation**.
 
+> NOTE: `derivedState` is synchronous! This is not the place to put asynchronous work like data fetching. that's what actions are for.
+
+#### Memoization
+
 But wait, there's more! What if your `derivedState` is expensive to compute? Memoization to the rescue! This API is necessarily more complex but typically won't be needed. Simple maps, reductions, etc. are fast enough and can be as fast or fast than memoization if that is the only computation being performed. Remember, memoization has additional overhead to check if the previous value can be used.
 
 The essence of the memoized form is to separate the process into two parts by declaring the data selection independently from the computation.  You do this by declaring a two-element array for the `derivedState`: `[(getState, item) => result, result => derivedValue]`. Here's an example:
@@ -284,10 +289,12 @@ The essence of the memoized form is to separate the process into two parts by de
 </Store>
 ```
 
-> NOTE: `derivedState` is synchronous! This is not the place to put asynchronous work like data fetching. that's what actions are for.
+> NOTE: The memoization maintains a cache size of 1 with the primary intent of eliminating re-calculation when re-rendering the same or similar state.
 
 ### middleware
 Every update to the Store state can optionally be passed through a series of synchronous middleware functions. A middleware function takes two arguments `state` and `context`, where `state` is an Immer draft state that can be directly mutated and `context` contains information about the update, such as which `action` initiated it. The `context` also includes `changes` and `reverts` arrays containing patches and inverse patches applied the state up to that point. The Store state is not updated until all middleware has been executed.
+
+> NOTE: Unlike Redux, actions can update the store multiple times and can even be long-lived. Each update is passed through all middleware. You can trace an update back to a single action call through the `context.dispatchId`.
 
 ### logger
 An optional `logger` prop can be set on the `Store`. This prop takes a function of a single `event` argument. Every `event` has a `type` property, one of:  `initialize`, `dispatch` and `update`. Simply setting `logger={console.log}` will give some raw feedback about what's happening during development.

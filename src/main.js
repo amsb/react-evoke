@@ -350,52 +350,55 @@ const createStore = defaultProps => {
 
     update = (mutator, context) =>
       // use immer copy-on-write (mutate draft) semantics to update current state
-      new Promise(resolve =>
-        this.setState(prevState => {
-          let changes = []
-          let reverts = []
-          let nextState = produce(
-            prevState,
-            draftState => mutator(draftState),
-            this.props.logger
-              ? (p, r) => {
-                  changes.push(...p)
-                  reverts.push(...r)
-                }
-              : undefined
-          )
+      new Promise(resolve => {
+        let changes = []
+        let reverts = []
+        this.setState(
+          prevState => {
+            let nextState = produce(
+              prevState,
+              draftState => mutator(draftState),
+              this.props.logger
+                ? (p, r) => {
+                    changes.push(...p)
+                    reverts.push(...r)
+                  }
+                : undefined
+            )
 
-          if (this.props.middleware) {
-            this.props.middleware.forEach(middleware => {
-              nextState = produce(
-                nextState,
-                draftState =>
-                  middleware(draftState, {
-                    ...context,
-                    changes,
-                    reverts
-                  }),
-                this.props.logger
-                  ? (p, r) => {
-                      changes.push(...p)
-                      reverts.push(...r)
-                    }
-                  : undefined
-              )
-            })
-          }
+            if (this.props.middleware) {
+              this.props.middleware.forEach(middleware => {
+                nextState = produce(
+                  nextState,
+                  draftState =>
+                    middleware(draftState, {
+                      ...context,
+                      changes,
+                      reverts
+                    }),
+                  this.props.logger
+                    ? (p, r) => {
+                        changes.push(...p)
+                        reverts.push(...r)
+                      }
+                    : undefined
+                )
+              })
+            }
 
-          this.props.logger &&
-            this.props.logger({
+            return nextState
+          },
+          () =>
+            resolve({
               type: "update",
               ...context,
               changes,
               reverts
             })
-
-          return nextState
-        }, resolve)
-      )
+        )
+      }).then(event => {
+        this.props.logger && this.props.logger(event)
+      })
 
     render() {
       return (
