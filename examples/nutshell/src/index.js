@@ -1,6 +1,6 @@
 import React, { Suspense } from "react"
 import ReactDOM from "react-dom"
-import createStore from "./react-evoke"
+import createStore from "react-evoke"
 import quotes from "../node_modules/pragmatic-motd/data/quotes.json"
 
 const { Store, UseStore, ErrorBoundary } = createStore()
@@ -11,10 +11,10 @@ const MAX_QUOTE_ID = quotes.length
 
 // fetch quote data via fake network request
 function fetchQuote(quoteId) {
-  // if (Math.random() > 0.75) {
-  //   // randomly return error because that's what happens IRL
-  //   return Promise.reject(Error("Network Error"));
-  // }
+  if (Math.random() > 0.75) {
+    // randomly return error because that's what happens IRL
+    return Promise.reject(Error("Network Error"));
+  }
   return new Promise(resolve =>
     // fake a slow network request
     setTimeout(() => resolve(quotes[quoteId - 1]), 1000)
