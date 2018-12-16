@@ -1,13 +1,13 @@
-import React, { Suspense } from "react";
-import ReactDOM from "react-dom";
-import createStore from "./react-evoke";
-import quotes from "../node_modules/pragmatic-motd/data/quotes.json";
+import React, { Suspense } from "react"
+import ReactDOM from "react-dom"
+import createStore from "react-evoke"
+import quotes from "../node_modules/pragmatic-motd/data/quotes.json"
 
-const { Store, UseStore, ErrorBoundary } = createStore();
+const { Store, UseStore, ErrorBoundary } = createStore()
 // // Experimental Hooks Alternative for React 16.7.0-alpha:
 // const { Store, ErrorBoundary, useStore } = createStore();
 
-const MAX_QUOTE_ID = quotes.length;
+const MAX_QUOTE_ID = quotes.length
 
 // fetch quote data via fake network request
 function fetchQuote(quoteId) {
@@ -18,49 +18,49 @@ function fetchQuote(quoteId) {
   return new Promise(resolve =>
     // fake a slow network request
     setTimeout(() => resolve(quotes[quoteId - 1]), 1000)
-  );
+  )
 }
 
 // define an action to load quote data
 async function loadQuote(store, quoteId) {
-  const quote = await fetchQuote(quoteId);
+  const quote = await fetchQuote(quoteId)
   await store.update(state => {
     if (!state.quotes) {
-      state.quotes = {};
+      state.quotes = {}
     }
-    state.quotes[quoteId] = quote;
-  });
+    state.quotes[quoteId] = quote
+  })
 }
 
 // define action the move to next quote
 async function nextQuote(store) {
   await store.update(state => {
-    state.quoteId = state.quoteId + 1;
+    state.quoteId = state.quoteId + 1
     if (state.quoteId >= MAX_QUOTE_ID) {
-      state.quoteId = 1;
+      state.quoteId = 1
     }
-  });
+  })
 }
 
 // define action the move to previous quote
 async function prevQuote(store) {
   await store.update(state => {
-    state.quoteId = state.quoteId - 1;
+    state.quoteId = state.quoteId - 1
     if (state.quoteId <= 0) {
-      state.quoteId = MAX_QUOTE_ID;
+      state.quoteId = MAX_QUOTE_ID
     }
-  });
+  })
 }
 
 // define action to toggle color
 async function toggleColor(store) {
   await store.update(state => {
     if (state.color === "blue") {
-      state.color = "green";
+      state.color = "green"
     } else {
-      state.color = "blue";
+      state.color = "blue"
     }
-  });
+  })
 }
 
 // simple component to format quote
@@ -69,7 +69,7 @@ const Quote = React.memo(({ title, description, color }) => (
     <h4>{title}</h4>
     <p style={{ color: color }}>{description}</p>
   </>
-));
+))
 
 function QuoteView({ quoteId }) {
   return (
@@ -87,7 +87,7 @@ function QuoteView({ quoteId }) {
         </UseStore>
       )}
     </UseStore>
-  );
+  )
 }
 
 // // Experimental Hooks Alternative for React 16.7.0-alpha:
@@ -109,7 +109,7 @@ function ErrorMessage({ state, error, clearError }) {
       <button onClick={() => clearError()}>Try Again</button>
       <pre>{JSON.stringify(state, null, 2)}</pre>
     </>
-  );
+  )
 }
 
 // read current quoteId from Store and render
@@ -129,7 +129,7 @@ function CurrentQuote() {
         )}
       </UseStore>
     </>
-  );
+  )
 }
 
 // // Experimental Hooks Alternative for React 16.7.0-alpha:
@@ -156,12 +156,12 @@ function App() {
         quoteId: 1,
         color: "blue"
       }}
-      unstable_derivedState={{
+      derivedState={{
         quoteLengths: (getState, quoteId) => {
-          return getState("quotes", quoteId).description.length;
+          return getState("quotes", quoteId).description.length
         }
       }}
-      unstable_logger={({ type, action, ...info }) =>
+      logger={({ type, action, ...info }) =>
         console.log(type, action, info)
       }
     >
@@ -171,7 +171,7 @@ function App() {
         </Suspense>
       </ErrorBoundary>
     </Store>
-  );
+  )
 }
 
-ReactDOM.render(<App />, document.getElementById("root"));
+ReactDOM.render(<App />, document.getElementById("root"))

@@ -1,8 +1,16 @@
-## Introduction
+<div align="center">
+  <br><br>
+  <img src="https://raw.githubusercontent.com/amsb/react-evoke/master/logo.png" alt="Evoke" width="400">
+  <br><br>
+</div>
 
-Straightforward action-driven state management for straightforward apps with React 16.6+ Suspense and [Immer](https://github.com/mweststrate/immer). React Evoke provides a simple framework for dispatching asynchronous state updating actions and accessing that state throughout the application. It is a lightweight library for shared application state management in the spirit of Command Query Responsibility Segregation (CQRS), flux, redux, etc.
+# Evoke
 
-React Evoke enables components to read existing shared state synchronously (through context) or suspend and initialize asynchronously if the state doesn't yet exist. Here is an example using function-as-child render props (hooks are supported as well):
+Straightforward action-driven state management for straightforward apps. Built on React [Suspense](https://www.youtube.com/watch?v=6g3g0Q_XVb4) and [Immer](https://github.com/mweststrate/immer), Evoke provides a simple framework for dispatching asynchronous state updating actions and accessing that state throughout the application. It is a lightweight library for shared application state management in the spirit of Command Query Responsibility Segregation (CQRS), flux, redux, etc.
+
+## Example
+
+React Evoke enables components to read existing shared state synchronously (internally using React's built-in Context feature) or use React Suspense to suspend the render and initialize asynchronously if the state doesn't yet exist. Here is an example using function-as-child render props (hooks supported as well in React 16.7+!):
 
 ```javascript
 function App() {
@@ -38,17 +46,18 @@ function QuoteView({ quoteId }) {
 }
 ```
 
-On first render, the quote data for `quoteId` 1 isn't yet available, so the render is suspended while the `loadQuote(quoteId)` initializer action fetches it and updates the Store state. Once the action is completed, React Suspense retries the render which succeeds because the quote data has been loaded by the `loadQuote` action.
+On first render, the quote data for `quoteId` `1` isn't yet available, so the render is suspended while the `loadQuote(quoteId)` initializer action fetches it and updates the Store state. Once the asynchronous action resolves, React Suspense retries the render which succeeds because the quote data was loaded by the `loadQuote` action.
 
 You can [browse a simple yet complete example](https://github.com/amsb/react-evoke/blob/master/examples/nutshell/src/index.js), or walk through how to use Evoke block by block below.
 
+## Guide
 
-## Store
+### Store
 Using Evoke involves three primary building blocks:
 
 1. A **Store** for shared state
 2. Asynchronous **actions** for updating shared state
-3. Access shared state with **UseStore** component or **useStore** hook (React 16.7+)
+3. Access shared state with **UseStore** component or **useStore** hook
 
 The `Store` *component* holds shared application **state** and a registry of **actions** for modifying that state:
 
@@ -65,6 +74,9 @@ ReactDOM.render(
     initialState={{
       quoteId: 1
     }}
+    initializers={{
+      quotes: "loadQuote"
+    }}
   >
     <App />
   </Store>,
@@ -72,16 +84,15 @@ ReactDOM.render(
 );
 ```
 
-The `Store` component takes four props: `actions`, `initializers`, `initialState`, and `meta`.:
+In basic usage, the `Store` component takes three props: `actions`, `initialState`, and `initializers`:
 
-* **actions** An object (or module!) declaring action handlers. The next section explains these.
-* **initializers** *(optional)* An object that maps state names to initialization actions (more on this in the Initializers section below).
+* **actions** *(required)* An object declaring asynchronous action handlers.
+* **initializers** *(optional)* An object that maps top-level state name to an initialization action.
 * **initialState** *(optional)* An object containing the initial state.
-* **meta** *(optional)* An object containing data that is not part of the application's view state. This is a good place to stash API objects and the like for later use in executing actions.
 
 
-## Actions
-The application defines **actions** for performing shared state updates. Actions are defined as functions with the signature `(store, payload) => Promise`. You can use async/await or explicitly return a `Promise`. Here is an example action to perform an async fetch:
+### Actions
+The application defines **actions** for performing shared state updates. Actions are defined as functions with the signature `(store, ...payload) => Promise` (the payload can be zero, one or more arguments). You can use async/await or explicitly return a `Promise`. Here is an example action to perform an async fetch:
 
 ```javascript
 async function loadQuote(store, quoteId) {
@@ -102,7 +113,7 @@ To keep your code organized, you might want to define your actions in a separate
 ```javascript
 import createStore from "react-evoke";
 const { Store, UseState } = createStore();
-import actions from "./actions"
+import * as actions from "./actions"
 
 ReactDOM.render(
   <Store actions={actions}>
@@ -112,7 +123,7 @@ ReactDOM.render(
 );
 ```
 
-## UseStore
+### UseStore
 
 The shared state and the actions come together through the `UseStore` component or the `useStore` hook (React 16.7+). Here's an example showing how to use the `UseStore` component to access the `Store`'s `quotes` data:
 
@@ -133,7 +144,7 @@ function QuoteView({ quoteId }) {
 
 The `UseStore` component uses the function-as-a-child render prop pattern. The arguments consumed by the function are `(value, actions)` where `value` is the value selected from the state by the key `name` and *optionally* the sub-key `item`. Evoke manages state updates using React Context so that only components using state under `name` will update if that shared state changes.
 
-### useStore Hook
+#### useStore Hook
 
 The same functionality that the `UseStore` component provides is also provided through the `useStore` hook for React 16.7+. The `useStore` hook takes the same two arguments as the `UseState` component: a state key `name` and an *optional* `item` sub-key. Here's what the above example looks like as a hook:
 
@@ -149,7 +160,7 @@ function QuoteView({ quoteId }) {
 }
 ```
 
-## Initializers
+### Initializers
 
 What if `quoteId` hasn't been loaded into `quotes` yet? You can declare a `Store` `initializer` to tell Evoke to first execute `loadQuote(quoteId)` action if that `item` isn't available:
 
@@ -187,7 +198,7 @@ ReactDOM.render(
 );
 ```
 
-## ErrorBoundary
+### ErrorBoundary
 
 Initializers (and other code) can throw errors during render. The `createStore` function also returns an `ErrorBoundary` component to help in handling these errors. Here's an example of how it gets used:
 
@@ -227,6 +238,59 @@ The `ErrorBoundary` component must be a descendant of the Store component. The `
 * `actions` are the callable async actions defined by the store.
 * `error` is the error object that was thrown.
 * `clearError` is an argument-less function that clears the error (and effectively "retries") *when the error was thrown by an initializer*.
+
+## Advanced Features
+
+In addition to the basic `actions`, `initialState`, and `initializers`, the `Store` supports a few more advanced (but optional!) features that can be configured through its props.
+
+### meta
+The `Store` can optionally be configured with an additional `meta` prop. The `meta` prop can be set to an object containing data that is not part of the application's view state (as changing it will not trigger an update). This is a good place to stash API objects and the like for later use in executing actions. The `meta` object is passed to the actions through the `store` argument.
+
+### derivedState
+Often, you will want to structure your store data in a way that makes it easier to maintain but less convenient to work with in your application. Evoke makes it easy to have it both ways by defining `derivedState` for the `Store`. Once defined, you can use `derivedState` just like regular state in your `UseStore` components and `useStore` hooks. Neat!
+
+As an example, consider the situation where you have a collection of people and their friends. You can easily maintain normalized data in the `Store` while conveniently accessing the list of friends for a particular person.
+
+```javascript
+<Store
+  ...
+  derivedState={{
+    friendsList: (getState, personId) => getState("people", personId)["friendIds"].map(
+        friendId => getState("people")[friendId]
+      )
+  }}
+>
+  ...
+</Store>
+```
+
+But what if the "people" collection hasn't been initialized yet? No problem! If `getState` discovers that the requested data isn't initialized, it will kick-off the Suspense mediated initialization process and try again. **Initialization will occur sequentially in the order of evaluation**.
+
+But wait, there's more! What if your `derivedState` is expensive to compute? Memoization to the rescue! This API is necessarily more complex but typically won't be needed. Simple maps, reductions, etc. are fast enough and can be as fast or fast than memoization if that is the only computation being performed. Remember, memoization has additional overhead to check if the previous value can be used.
+
+The essence of the memoized form is to separate the process into two parts by declaring the data selection independently from the computation.  You do this by declaring a two-element array for the `derivedState`: `[(getState, item) => result, result => derivedValue]`. Here's an example:
+
+```javascript
+<Store
+  ...
+  derivedState={{
+    expensiveData: [
+      (getState, dataId) => getState("someData", dataId),
+      someData => expensiveCalculation(someData)
+    ]
+  }}
+>
+  ...
+</Store>
+```
+
+> NOTE: `derivedState` is synchronous! This is not the place to put asynchronous work like data fetching. that's what actions are for.
+
+### middleware
+Every update to the Store state can optionally be passed through a series of synchronous middleware functions. A middleware function takes two arguments `state` and `context`, where `state` is an Immer draft state that can be directly mutated and `context` contains information about the update, such as which `action` initiated it. The `context` also includes `changes` and `reverts` arrays containing patches and inverse patches applied the state up to that point. The Store state is not updated until all middleware has been executed.
+
+### logger
+An optional `logger` prop can be set on the `Store`. This prop takes a function of a single `event` argument. Every `event` has a `type` property, one of:  `initialize`, `dispatch` and `update`. Simply setting `logger={console.log}` will give some raw feedback about what's happening during development.
 
 ## Caveats
 
