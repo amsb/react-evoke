@@ -180,8 +180,18 @@ const createStore = defaultProps => {
         return Promise.all(promises)
           .then(values => dispatchId)
           .catch(error => {
-            error.dispatchId = dispatchId
-            return error
+            if (error) {
+              error.dispatchId = dispatchId
+            }
+            this.props.logger &&
+              this.props.logger({
+                type: "error",
+                dispatchId,
+                action,
+                payload,
+                error
+              })
+            throw error
           })
       } else {
         if (process.env.NODE_ENV !== "production") {
