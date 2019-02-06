@@ -64,7 +64,8 @@ const createStore = defaultProps => {
     if (NAME_BITS.hasOwnProperty(name)) {
       return NAME_BITS[name]
     } else {
-      return (NAME_BITS[name] = 1 << NAME_COUNT++)
+      const bits = 1 << NAME_COUNT++
+      return (NAME_BITS[name] = bits)
     }
   }
 
@@ -227,7 +228,7 @@ const createStore = defaultProps => {
         } else {
           this.derivedState[name] = deriver
         }
-        NAME_BITS[name] = 1 << 31 // dependent on everything until first executed
+        NAME_BITS[name] = 1073741823 // dependent on everything until first executed
       })
     }
 
@@ -249,7 +250,7 @@ const createStore = defaultProps => {
       if (this.derivedState.hasOwnProperty(name)) {
         let mask = 0
         const getState = (name, item) => {
-          mask |= NAME_BITS[name]
+          mask |= getObservedBits(name, item)
           const value = this.getState(name, item)
           // eslint-disable-next-line eqeqeq
           if (value == UNINITIALIZED) {
