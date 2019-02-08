@@ -179,7 +179,9 @@ const createStore = defaultProps => {
           )
         )
         return Promise.all(promises)
-          .then(values => dispatchId)
+          .then(values =>
+            Object.assign({ dispatchId }, ...values.map(v => v || {}))
+          )
           .catch(error => {
             if (error) {
               error.dispatchId = dispatchId

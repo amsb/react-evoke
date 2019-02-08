@@ -1,6 +1,6 @@
 {
   "name": "react-evoke",
-  "version": "0.8.2",
+  "version": "0.9.0",
   "author": "Alexander M. Sauer-Budge",
   "license": "MIT",
   "repository": {
@@ -16,7 +16,7 @@
   "module": "dist/react-evoke.esm.js",
   "browser": "dist/react-evoke.umd.js",
   "dependencies": {
-    "immer": "^1.7.4",
+    "immer": "^1.12.1",
     "prop-types": "^15.6.2"
   },
   "devDependencies": {
@@ -35,9 +35,9 @@
     "react": "^16.6.3"
   },
   "scripts": {
-    "build": "NODE_ENV=production rollup -c",
+    "build": "NODE_ENV=production node_modules/rollup/bin/rollup -c",
     "prepare": "npm run build",
-    "dev": "rollup -c -w",
+    "dev": "node_modules/rollup/bin/rollup -c -w",
     "test": "node test/test.js",
     "pretest": "npm run build"
   },
