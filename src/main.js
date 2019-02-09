@@ -541,4 +541,64 @@ const createStore = defaultProps => {
   return exports
 }
 
+export function consoleLogger ({ type, action, ...info }) {
+  switch (type) {
+    case "initialize":
+      console.log(
+        `%c${type} %c${info.initializer}%c%s %cwith %c${action}`,
+        "font-weight: bold;",
+        "color: green; font-weight: bold;",
+        "color: black; font-weight: bold;",
+        info.payload ? `["${info.payload}"]` : "",
+        "color: black; font-weight: bold;",
+        "color: blue; font-weight: bold;"
+      )
+      break
+    case "dispatch":
+      console.group(
+        `[${info.dispatchId}] ${type} %c${action}%c`,
+        "color: blue;",
+        "color: black"
+      )
+      info.payload.forEach(arg => arg != null && console.log(arg))
+      console.groupEnd()
+      break
+    case "update":
+      console.group(
+        `[${info.dispatchId}] ${type} %cfrom %c${action}%c`,
+        "font-weight: normal;",
+        "color: blue;",
+        "color: black"
+      )
+      info.changes.forEach(patch => {
+        if (patch.path.length > 1) {
+          console.groupCollapsed(
+            `${patch.op} %c${patch.path.slice(0, patch.path.length - 1)}%c["${
+              patch.path[patch.path.length - 1]
+            }"]`,
+            "color: green",
+            "color: black"
+          )
+        } else {
+          console.groupCollapsed(
+            `${patch.op} %c${patch.path[0]}`,
+            "color: green"
+          )
+        }
+        console.log(patch.value)
+        console.groupEnd()
+      })
+      console.groupEnd()
+      break
+    default:
+      console.groupCollapsed(
+        `%c${type} %c${action}`,
+        "color: lightgrey",
+        "color: black"
+      )
+      console.log(info)
+      console.groupEnd()
+  }
+}
+
 export default createStore
