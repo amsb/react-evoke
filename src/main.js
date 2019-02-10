@@ -179,12 +179,29 @@ const createStore = defaultProps => {
           )
         )
         return Promise.all(promises)
-          .then(values =>
-            Object.assign({ dispatchId }, ...values.map(v => v || {}))
-          )
+          .then(values => {
+            const result = Object.assign(
+              Object.defineProperty({}, "dispatchId", {
+                value: dispatchId,
+                enumerable: false
+              }),
+              ...values.map(v => v || {})
+            )
+            this.props.logger &&
+              this.props.logger({
+                type: "executed",
+                dispatchId,
+                action,
+                result
+              })
+            return result
+          })
           .catch(error => {
             if (error) {
-              error.dispatchId = dispatchId
+              Object.defineProperty(error, "dispatchId", {
+                value: dispatchId,
+                enumerable: false
+              })
             }
             this.props.logger &&
               this.props.logger({
@@ -541,7 +558,7 @@ const createStore = defaultProps => {
   return exports
 }
 
-export function consoleLogger ({ type, action, ...info }) {
+export function consoleLogger({ type, action, ...info }) {
   switch (type) {
     case "initialize":
       console.log(
@@ -563,6 +580,15 @@ export function consoleLogger ({ type, action, ...info }) {
       info.payload.forEach(arg => arg != null && console.log(arg))
       console.groupEnd()
       break
+    case "executed":
+      console.group(
+        `[${info.dispatchId}] ${type} %c${action}%c`,
+        "color: blue;",
+        "color: black"
+      )
+      Object.keys(info.result).length > 0 && console.log(info.result)
+      console.groupEnd()
+      break
     case "update":
       console.group(
         `[${info.dispatchId}] ${type} %cfrom %c${action}%c`,
@@ -573,21 +599,33 @@ export function consoleLogger ({ type, action, ...info }) {
       info.changes.forEach(patch => {
         if (patch.path.length > 1) {
           console.groupCollapsed(
-            `${patch.op} %c${patch.path.slice(0, patch.path.length - 1)}%c["${
+            `%c${patch.op} %c${patch.path.slice(0, patch.path.length - 1)}%c["${
               patch.path[patch.path.length - 1]
             }"]`,
+            "font-weight: normal; font-style: italic;",
             "color: green",
             "color: black"
           )
         } else {
           console.groupCollapsed(
-            `${patch.op} %c${patch.path[0]}`,
+            `%c${patch.op} %c${patch.path[0]}`,
+            "font-weight: normal; font-style: italic;",
             "color: green"
           )
         }
         console.log(patch.value)
         console.groupEnd()
       })
+      console.groupEnd()
+      break
+    case "error":
+      console.groupCollapsed(
+        `[${info.dispatchId}] %c${type} %cin %c${action}`,
+        "color: red",
+        "color: black; font-weight: normal;",
+        "color: black"
+      )
+      console.log(info.error)
       console.groupEnd()
       break
     default:
