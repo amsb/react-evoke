@@ -139,7 +139,8 @@ const createStore = defaultProps => {
     }
 
     register = handlers => {
-      Object.entries(handlers).forEach(([action, handler]) => {
+      Object.keys(handlers).forEach((action) => {
+        const handler = handlers[action]
         if (!this.handlers.hasOwnProperty(action)) {
           this.handlers[action] = new Set()
           this.actions[action] = payload => this.dispatch(action, payload)
@@ -241,7 +242,8 @@ const createStore = defaultProps => {
     }
 
     registerDerivedState = derivedState => {
-      Object.entries(derivedState).forEach(([name, deriver]) => {
+      Object.keys(derivedState).forEach((name) => {
+        const deriver = derivedState[name]
         if (Array.isArray(deriver)) {
           this.derivedState[name] = memoizeDeriver(...deriver)
         } else {
@@ -567,7 +569,7 @@ export function consoleLogger({ type, action, ...info }) {
         "color: green; font-weight: bold;",
         "color: black; font-weight: bold;",
         info.payload ? `["${info.payload}"]` : "",
-        "color: black; font-weight: bold;",
+        "color: black; font-weight: normal;",
         "color: blue; font-weight: bold;"
       )
       break
