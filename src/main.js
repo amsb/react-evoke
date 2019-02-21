@@ -148,7 +148,7 @@ const createStore = defaultProps => {
     }
 
     register = handlers => {
-      Object.keys(handlers).forEach((action) => {
+      Object.keys(handlers).forEach(action => {
         const handler = handlers[action]
         if (!this.handlers.hasOwnProperty(action)) {
           this.handlers[action] = new Set()
@@ -253,7 +253,7 @@ const createStore = defaultProps => {
     }
 
     registerDerivedState = derivedState => {
-      Object.keys(derivedState).forEach((name) => {
+      Object.keys(derivedState).forEach(name => {
         const deriver = derivedState[name]
         if (Array.isArray(deriver)) {
           this.derivedState[name] = memoizeDeriver(...deriver)
@@ -335,7 +335,7 @@ const createStore = defaultProps => {
 
       // retrieve pending cache state for this item
       const cacheKeyForItem = item // could be ALL_ITEMS (=== undefined)
-      const value = cache[cacheKeyForItem]
+      let value = cache[cacheKeyForItem]
       if (
         value === undefined ||
         (value === true &&
@@ -358,9 +358,30 @@ const createStore = defaultProps => {
           // until after promise is thrown and the calling render function exits.
           // https://developer.mozilla.org/en-US/docs/Web/JavaScript/EventLoop#Zero_delays
           setTimeout(resolve, 0)
-        ).then(() => this.dispatch(action, item))
+        )
+          .then(() => this.dispatch(action, item))
+          .then(() => {
+            // eslint-disable-next-line eqeqeq
+            if (this.state[name] == UNINITIALIZED) {
+              // prevent infinite loop with faulty initializer
+              if (item === ALL_ITEMS) {
+                console.error(
+                  `Initializer ${action} didn't initialize ${name}]!`
+                )
+                this.setState(prevState => ({ ...prevState, [name]: {} }))
+              } else {
+                console.error(
+                  `Initializer ${action}(${item}) didn't initialize ${name}[${item}]!`
+                )
+                this.setState(prevState => ({
+                  ...prevState,
+                  [name]: { ...(prevState[name] || {}), [item]: {} }
+                }))
+              }
+            }
+          })
 
-        // put pending promise in the cahce
+        // put pending promise in the cache
         cache[cacheKeyForItem] = promise
 
         // suspend render and update cache when resolved
@@ -382,9 +403,24 @@ const createStore = defaultProps => {
           throw Promise.resolve()
         } else {
           // throw initializer error to error boundary
-          value.isInitializer = true
-          value.clear = () => {
+          if (!value.hasOwnProperty("isInitializer")) {
+            value = Object.defineProperty(value, "isInitializer", {
+              value: true,
+              enumerable: false
+            })
+          } else {
+            value.isInitializer = true
+          }
+          const clear = () => {
             delete cache[cacheKeyForItem]
+          }
+          if (!value.hasOwnProperty("clear")) {
+            value = Object.defineProperty(value, "clear", {
+              value: clear,
+              enumerable: false
+            })
+          } else {
+            value.clear = clear
           }
           throw value
         }

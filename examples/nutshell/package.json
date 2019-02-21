@@ -6,12 +6,13 @@
     "react-scripts": "2.0.5"
   },
   "dependencies": {
+    "core-js": "^2.6.5",
     "immer": "^1.7.2",
     "pragmatic-motd": "^0.1.0",
     "prop-types": "^15.6.2",
     "react": "16.7.0-alpha.2",
     "react-dom": "16.7.0-alpha.2",
-    "react-evoke": "^0.8.1"
+    "react-evoke": "^0.9.4"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -22,7 +23,7 @@
   "browserslist": [
     ">0.2%",
     "not dead",
-    "not ie <= 11",
+    "not ie < 11",
     "not op_mini all"
   ]
 }
