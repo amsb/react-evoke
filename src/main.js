@@ -111,7 +111,16 @@ const createStore = defaultProps => {
       this._dispatchId = 1
     }
 
+    componentDidMount() {
+      if (this.actions.hasOwnProperty("__SETUP__")) {
+        this.actions["__SETUP__"]()
+      }
+    }
+
     componentWillUnmount() {
+      if (this.actions.hasOwnProperty("__TEARDOWN__")) {
+        this.actions["__TEARDOWN__"]()
+      }
       // alert developer of an unmount during a pending initialization so they can
       // add the missing Suspense component
       if (process.env.NODE_ENV !== "production")
@@ -199,10 +208,12 @@ const createStore = defaultProps => {
           })
           .catch(error => {
             if (error) {
-              Object.defineProperty(error, "dispatchId", {
-                value: dispatchId,
-                enumerable: false
-              })
+              if (!error.hasOwnProperty("dispatchId")) {
+                Object.defineProperty(error, "dispatchId", {
+                  value: dispatchId,
+                  enumerable: false
+                })
+              }
             }
             this.props.logger &&
               this.props.logger({
