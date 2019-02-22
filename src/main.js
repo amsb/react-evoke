@@ -408,8 +408,6 @@ const createStore = defaultProps => {
               value: true,
               enumerable: false
             })
-          } else {
-            value.isInitializer = true
           }
           const clear = () => {
             delete cache[cacheKeyForItem]
@@ -417,6 +415,7 @@ const createStore = defaultProps => {
           if (!value.hasOwnProperty("clear")) {
             value = Object.defineProperty(value, "clear", {
               value: clear,
+              writable: true,
               enumerable: false
             })
           } else {
