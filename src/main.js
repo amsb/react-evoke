@@ -79,7 +79,9 @@ const createStore = defaultProps => {
       initializers: PropTypes.object,
       initialState: PropTypes.object,
       derivedState: PropTypes.object,
-      logger: PropTypes.func,
+      setup: PropTypes.string,
+      teardown: PropTypes.string,
+      middleware: PropTypes.arrayOf(PropTypes.func),
       meta: PropTypes.object
     }
 
@@ -89,7 +91,7 @@ const createStore = defaultProps => {
       super(props)
 
       this.actions = {}
-      this.handlers = {}
+      this.registry = {}
       this.register(props.actions)
 
       if (props.initialState) {
@@ -112,14 +114,14 @@ const createStore = defaultProps => {
     }
 
     componentDidMount() {
-      if (this.actions.hasOwnProperty("__SETUP__")) {
-        this.actions["__SETUP__"]()
+      if (this.props.setup) {
+        this.actions[this.props.setup]()
       }
     }
 
     componentWillUnmount() {
-      if (this.actions.hasOwnProperty("__TEARDOWN__")) {
-        this.actions["__TEARDOWN__"]()
+      if (this.props.teardown) {
+        this.actions[this.props.teardown]()
       }
       // alert developer of an unmount during a pending initialization so they can
       // add the missing Suspense component
@@ -147,87 +149,83 @@ const createStore = defaultProps => {
       })
     }
 
-    register = handlers => {
-      Object.keys(handlers).forEach(action => {
-        const handler = handlers[action]
-        if (!this.handlers.hasOwnProperty(action)) {
-          this.handlers[action] = new Set()
-          this.actions[action] = payload => this.dispatch(action, payload)
+    register = actions => {
+      Object.keys(actions).forEach(actionName => {
+        const action = actions[actionName]
+        if (!this.registry.hasOwnProperty(actionName)) {
+          this.registry[actionName] = new Set()
+          this.actions[actionName] = (...payload) =>
+            this.dispatch(actionName, payload)
         }
-        this.handlers[action].add(handler)
+        this.registry[actionName].add(action)
       })
     }
 
-    dispatch = (action, ...payload) => {
+    dispatch = (actionName, payload, extraInfo) => {
       const dispatchId = this._dispatchId++
-      this.props.logger &&
-        this.props.logger({
-          type: "dispatch",
+      if (this.registry.hasOwnProperty(actionName)) {
+        // only provide a public Store interface to actions
+        const store = {
+          update: this.update,
+          getState: this.getState,
+          actions: this.actions,
+          meta: this.meta
+        }
+
+        // pass along related information for logging etc.
+        const info = {
+          actionName,
           dispatchId,
-          action,
-          payload
-        })
-      if (this.handlers.hasOwnProperty(action)) {
-        const promises = []
-        this.handlers[action].forEach((
-          handler // Set.forEach for IE11
-        ) =>
-          promises.push(
-            handler(
-              {
-                // only provide a public Store interface to actions
-                update: mutator =>
-                  this.update(mutator, { action, payload, dispatchId }),
-                // set: replacer =>
-                //   this.set(replacer, { action, payload, dispatchId }),
-                getState: this.getState,
-                actions: this.actions,
-                meta: this.meta
-              },
-              ...payload
-            )
-          )
-        )
-        return Promise.all(promises)
-          .then(values => {
-            const result = Object.assign(
-              Object.defineProperty({}, "dispatchId", {
-                value: dispatchId,
-                enumerable: false
-              }),
-              ...values.map(v => v || {})
-            )
-            this.props.logger &&
-              this.props.logger({
-                type: "executed",
-                dispatchId,
-                action,
-                result
-              })
-            return result
-          })
-          .catch(error => {
-            if (error) {
-              if (!error.hasOwnProperty("dispatchId")) {
-                Object.defineProperty(error, "dispatchId", {
+          ...extraInfo
+        }
+
+        // create an function to execute all handlers registered
+        // for an action
+        const action = (store, ...payload) => {
+          const promises = []
+          this.registry[actionName].forEach((
+            handler // Set.forEach for IE11
+          ) => promises.push(handler(store, ...payload)))
+          return Promise.all(promises)
+            .then(values =>
+              Object.assign(
+                Object.defineProperty({}, "dispatchId", {
                   value: dispatchId,
                   enumerable: false
-                })
+                }),
+                ...values.map(v => v || {})
+              )
+            )
+            .catch(error => {
+              if (error) {
+                if (!error.hasOwnProperty("dispatchId")) {
+                  Object.defineProperty(error, "dispatchId", {
+                    value: dispatchId,
+                    enumerable: false
+                  })
+                }
               }
-            }
-            this.props.logger &&
-              this.props.logger({
-                type: "error",
-                dispatchId,
-                action,
-                payload,
-                error
-              })
-            throw error
-          })
+              throw error
+            })
+        }
+
+        // assemble middleware
+        let middleware = (action, info) => (store, ...payload) =>
+          action(store, ...payload)
+        if (this.props.middleware && this.props.middleware.length > 0) {
+          middleware = (action, info) =>
+            this.props.middleware.reduce(
+              (prevHandler, nextMiddleware) =>
+                nextMiddleware(prevHandler, info),
+              action
+            )
+        }
+
+        // execute middleware-wrapped action
+        return middleware(action, info)(store, ...payload)
       } else {
         if (process.env.NODE_ENV !== "production") {
-          console.warn(`Unregistered action ${action} dispatched`)
+          console.warn(`Unregistered action ${actionName} dispatched`)
         }
         return Promise.resolve(null) // ignore undeclared actions
       }
@@ -314,8 +312,8 @@ const createStore = defaultProps => {
       }
 
       // get initialization action
-      const action = this.props.initializers[name]
-      if (!action) {
+      const actionName = this.props.initializers[name]
+      if (!actionName) {
         if (item === ALL_ITEMS) {
           throw Error(
             `Cannot use undefined ${name} without Store initializer for ${name}`
@@ -346,32 +344,25 @@ const createStore = defaultProps => {
         // OR it resolved without error and state still uninitialized
         // warning: we may not want to be this lenient but it can be helpful
         // for signaling that a retry is worthwhile
-        this.props.logger &&
-          this.props.logger({
-            type: "initialize",
-            action,
-            payload: item,
-            initializer: name
-          })
         const promise = new Promise(resolve =>
           // avoid updating state during existing state transition by deferring dispatch
           // until after promise is thrown and the calling render function exits.
           // https://developer.mozilla.org/en-US/docs/Web/JavaScript/EventLoop#Zero_delays
           setTimeout(resolve, 0)
         )
-          .then(() => this.dispatch(action, item))
+          .then(() => this.dispatch(actionName, [item], { initializing: name }))
           .then(() => {
             // eslint-disable-next-line eqeqeq
             if (this.state[name] == UNINITIALIZED) {
               // prevent infinite loop with faulty initializer
               if (item === ALL_ITEMS) {
                 console.error(
-                  `Initializer ${action} didn't initialize ${name}]!`
+                  `Initializer ${actionName} didn't initialize ${name}]!`
                 )
                 this.setState(prevState => ({ ...prevState, [name]: {} }))
               } else {
                 console.error(
-                  `Initializer ${action}(${item}) didn't initialize ${name}[${item}]!`
+                  `Initializer ${actionName}(${item}) didn't initialize ${name}[${item}]!`
                 )
                 this.setState(prevState => ({
                   ...prevState,
@@ -426,7 +417,7 @@ const createStore = defaultProps => {
       }
     }
 
-    update = (mutator, context) =>
+    update = mutator =>
       // use immer copy-on-write (mutate draft) semantics to update current state
       new Promise(resolve => {
         let changes = []
@@ -436,46 +427,19 @@ const createStore = defaultProps => {
             let nextState = produce(
               prevState,
               draftState => mutator(draftState),
-              this.props.logger
-                ? (p, r) => {
-                    changes.push(...p)
-                    reverts.push(...r)
-                  }
-                : undefined
+              (p, r) => {
+                changes.push(...p)
+                reverts.push(...r)
+              }
             )
-
-            if (this.props.middleware) {
-              this.props.middleware.forEach(middleware => {
-                nextState = produce(
-                  nextState,
-                  draftState =>
-                    middleware(draftState, {
-                      ...context,
-                      changes,
-                      reverts
-                    }),
-                  this.props.logger
-                    ? (p, r) => {
-                        changes.push(...p)
-                        reverts.push(...r)
-                      }
-                    : undefined
-                )
-              })
-            }
-
             return nextState
           },
           () =>
             resolve({
-              type: "update",
-              ...context,
               changes,
               reverts
             })
         )
-      }).then(event => {
-        this.props.logger && this.props.logger(event)
       })
 
     render() {
@@ -590,9 +554,18 @@ const createStore = defaultProps => {
 
   if (React.useContext) {
     function useStore(name, item) {
-      const store = React.useContext(
+      // jump through an ugly hoop to avoid warning about using
+      // observedBits argument with Context hook as we wait for
+      // react to provide a better solution to selective Context
+      // updates. if this ever gives trouble, just don't use
+      // observedBits as it just provides an optimization and
+      // isn't strictly required
+      const dispatcher =
+        React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED
+          .ReactCurrentDispatcher.current
+      const store = dispatcher.useContext(
         StoreContext,
-        this.props.name ? getObservedBits(name, item) : 0
+        name ? getObservedBits(name, item) : 0
       )
       if (name) {
         return [store.read(name, item), store.actions]
@@ -606,45 +579,48 @@ const createStore = defaultProps => {
   return exports
 }
 
-export function consoleLogger({ type, action, ...info }) {
+function logToConsole(
+  type,
+  { actionName, payload, dispatchId, initializing, changes, result, error }
+) {
   switch (type) {
-    case "initialize":
+    case "initializing":
       console.log(
-        `%c${type} %c${info.initializer}%c%s %cwith %c${action}`,
+        `%c${type} %c${initializing}%c%s %cwith %c${actionName}`,
         "font-weight: bold;",
         "color: green; font-weight: bold;",
         "color: black; font-weight: bold;",
-        info.payload ? `["${info.payload}"]` : "",
+        payload ? `["${payload}"]` : "",
         "color: black; font-weight: normal;",
         "color: blue; font-weight: bold;"
       )
       break
     case "dispatch":
       console.group(
-        `[${info.dispatchId}] ${type} %c${action}%c`,
+        `[${dispatchId}] ${type} %c${actionName}%c`,
         "color: blue;",
         "color: black"
       )
-      info.payload.forEach(arg => arg != null && console.log(arg))
+      payload.forEach(arg => arg != null && console.log(arg))
       console.groupEnd()
       break
     case "executed":
       console.group(
-        `[${info.dispatchId}] ${type} %c${action}%c`,
+        `[${dispatchId}] ${type} %c${actionName}%c`,
         "color: blue;",
         "color: black"
       )
-      Object.keys(info.result).length > 0 && console.log(info.result)
+      Object.keys(result).length > 0 && console.log(result)
       console.groupEnd()
       break
     case "update":
       console.group(
-        `[${info.dispatchId}] ${type} %cfrom %c${action}%c`,
+        `[${dispatchId}] ${type} %cfrom %c${actionName}%c`,
         "font-weight: normal;",
         "color: blue;",
         "color: black"
       )
-      info.changes.forEach(patch => {
+      changes.forEach(patch => {
         if (patch.path.length > 1) {
           console.groupCollapsed(
             `%c${patch.op} %c${patch.path.slice(0, patch.path.length - 1)}%c["${
@@ -668,22 +644,72 @@ export function consoleLogger({ type, action, ...info }) {
       break
     case "error":
       console.groupCollapsed(
-        `[${info.dispatchId}] %c${type} %cin %c${action}`,
+        `[${dispatchId}] %c${type} %cin %c${actionName}`,
         "color: red",
         "color: black; font-weight: normal;",
         "color: black"
       )
-      console.log(info.error)
+      console.log(error)
       console.groupEnd()
       break
     default:
       console.groupCollapsed(
-        `%c${type} %c${action}`,
+        `%c${type} %c${actionName}`,
         "color: lightgrey",
         "color: black"
       )
-      console.log(info)
+      console.log({ actionName, payload, dispatchId })
       console.groupEnd()
+  }
+}
+
+export const consoleLogger = (
+  action,
+  { actionName, initializing, dispatchId }
+) => async (store, ...payload) => {
+  if (initializing) {
+    logToConsole("initializing", {
+      dispatchId,
+      actionName,
+      payload,
+      initializing
+    })
+  }
+  const loggingStore = {
+    ...store,
+    update: mutator =>
+      store.update(mutator).then(updateInfo => {
+        logToConsole("update", {
+          dispatchId,
+          actionName,
+          payload,
+          ...updateInfo
+        })
+        return updateInfo
+      })
+  }
+  logToConsole("dispatch", {
+    dispatchId,
+    actionName,
+    payload
+  })
+  try {
+    const result = await action(loggingStore, ...payload)
+    logToConsole("executed", {
+      dispatchId,
+      actionName,
+      payload,
+      result: result || {}
+    })
+    return result
+  } catch (error) {
+    logToConsole("error", {
+      dispatchId,
+      actionName,
+      payload,
+      error
+    })
+    throw error
   }
 }
 

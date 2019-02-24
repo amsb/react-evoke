@@ -126,7 +126,7 @@ ReactDOM.render(
 
 ### UseStore
 
-The shared state and the actions come together through the `UseStore` component or the `useStore` hook (React 16.7+). Here's an example showing how to use the `UseStore` component to access the `Store`'s `quotes` data:
+The shared state and the actions come together through the `UseStore` component or the `useStore` hook (React 16.8+). Here's an example showing how to use the `UseStore` component to access the `Store`'s `quotes` data:
 
 ```javascript
 function QuoteView({ quoteId }) {
@@ -147,7 +147,7 @@ The `UseStore` component uses the function-as-a-child render prop pattern. The a
 
 #### useStore Hook
 
-The same functionality that the `UseStore` component provides is also provided through the `useStore` hook for React 16.7+. The `useStore` hook takes the same two arguments as the `UseState` component: a state key `name` and an *optional* `item` sub-key. Here's what the above example looks like as a hook:
+The same functionality that the `UseStore` component provides is also provided through the `useStore` hook for React 16.8+. The `useStore` hook takes the same two arguments as the `UseState` component: a state key `name` and an *optional* `item` sub-key. Here's what the above example looks like as a hook:
 
 ```javascript
 function QuoteView({ quoteId }) {
@@ -292,12 +292,18 @@ The essence of the memoized form is to separate the process into two parts by de
 > NOTE: The memoization maintains a cache size of 1 with the primary intent of eliminating re-calculation when re-rendering the same or similar state.
 
 ### middleware
-Every update to the Store state can optionally be passed through a series of synchronous middleware functions. A middleware function takes two arguments `state` and `context`, where `state` is an Immer draft state that can be directly mutated and `context` contains information about the update, such as which `action` initiated it. The `context` also includes `changes` and `reverts` arrays containing patches and inverse patches applied the state up to that point. The Store state is not updated until all middleware has been executed.
+The Store can be enhanced through middleware. Right from the get-go, you'll probably want to
+use the built-in logging middleware:
 
-> NOTE: Unlike Redux, actions can update the store multiple times and can even be long-lived. Each update is passed through all middleware. You can trace an update back to a single action call through the `context.dispatchId`.
-
-### logger
-An optional `logger` prop can be set on the `Store`. This prop takes a function of a single `event` argument. Every `event` has a `type` property, one of:  `initialize`, `dispatch` and `update`. Simply setting `logger={console.log}` will give some raw feedback about what's happening during development.
+```javascript
+import { consoleLogging } from "react-evoke"
+<Store
+  ...
+  middleware={[consoleLogging]}
+>
+  ...
+</Store>
+```
 
 ## Caveats
 
@@ -315,4 +321,4 @@ In particular, React Evoke was designed for applications that want to use the CQ
 
 Released under MIT license.
 
-Copyright &copy; 2018 Alexander M. Sauer-Budge
+Copyright &copy; 2019 Alexander M. Sauer-Budge

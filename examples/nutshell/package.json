@@ -7,12 +7,11 @@
   },
   "dependencies": {
     "core-js": "^2.6.5",
-    "immer": "^1.7.2",
+    "immer": "^2.0.0",
     "pragmatic-motd": "^0.1.0",
     "prop-types": "^15.6.2",
-    "react": "16.7.0-alpha.2",
-    "react-dom": "16.7.0-alpha.2",
-    "react-evoke": "^0.9.4"
+    "react": "16.8.3",
+    "react-dom": "16.8.3"
   },
   "scripts": {
     "start": "react-scripts start",

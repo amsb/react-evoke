@@ -1,12 +1,12 @@
 import React, { Suspense } from "react"
 import ReactDOM from "react-dom"
-import createStore from "./react-evoke"
+import createStore, { consoleLogger } from "./react-evoke"
 import quotes from "../node_modules/pragmatic-motd/data/quotes.json"
 
-import 'core-js/es6/object'
-import 'core-js/es6/promise'
+import "core-js/es6/object"
+import "core-js/es6/promise"
 
-const { Store, UseStore, ErrorBoundary } = createStore()
+const { Store, useStore, ErrorBoundary } = createStore()
 // // Experimental Hooks Alternative for React 16.7.0-alpha:
 // const { Store, ErrorBoundary, useStore } = createStore();
 
@@ -33,6 +33,7 @@ async function loadQuote(store, quoteId) {
     }
     state.quotes[quoteId] = quote
   })
+  return { quoteId }
 }
 
 // define action the move to next quote
@@ -75,34 +76,18 @@ const Quote = React.memo(({ title, description, color }) => (
 ))
 
 function QuoteView({ quoteId }) {
+  const [quote, { prevQuote, nextQuote }] = useStore("quotes", quoteId)
+  const [color, { toggleColor }] = useStore("color")
+
   return (
-    <UseStore name="quotes" item={quoteId}>
-      {(quote, { prevQuote, nextQuote }) => (
-        <UseStore name="color">
-          {(color, { toggleColor }) => (
-            <>
-              <Quote {...quote} color={color} />
-              <button onClick={() => prevQuote()}>Previous Quote</button>{" "}
-              <button onClick={() => nextQuote()}>Next Quote</button>{" "}
-              <button onClick={() => toggleColor()}>Toggle Color</button>
-            </>
-          )}
-        </UseStore>
-      )}
-    </UseStore>
+    <>
+      <Quote {...quote} color={color} />
+      <button onClick={() => prevQuote()}>Previous Quote</button>{" "}
+      <button onClick={() => nextQuote()}>Next Quote</button>{" "}
+      <button onClick={() => toggleColor()}>Toggle Color</button>
+    </>
   )
 }
-
-// // Experimental Hooks Alternative for React 16.7.0-alpha:
-// function QuoteView({ quoteId }) {
-//   const [quote, { nextQuote }] = useStore("quotes", quoteId);
-//   return (
-//     <>
-//       <Quote {...quote} />
-//       <button onClick={() => nextQuote()}>Next Quote</button>
-//     </>
-//   );
-// }
 
 // a component for displaying an error message
 function ErrorMessage({ state, error, clearError }) {
@@ -117,29 +102,17 @@ function ErrorMessage({ state, error, clearError }) {
 
 // read current quoteId from Store and render
 function CurrentQuote() {
+  const [quoteId] = useStore("quoteId")
+  const [quoteLength] = useStore("quoteLengths", quoteId)
+
   return (
     <>
-      <UseStore name="quoteId">
-        {quoteId => (
-          <>
-            <UseStore name="quoteLengths" item={quoteId}>
-              {quoteLength => (
-                <p>The following quote is {quoteLength} characters long:</p>
-              )}
-            </UseStore>
-            <QuoteView quoteId={quoteId} />
-          </>
-        )}
-      </UseStore>
+      <p>The following quote is {quoteLength} characters long:</p>
+      <QuoteView quoteId={quoteId} />
     </>
   )
 }
 
-// // Experimental Hooks Alternative for React 16.7.0-alpha:
-// function CurrentQuote() {
-//   const [quoteId] = useStore("quoteId");
-//   return <QuoteView quoteId={quoteId} />;
-// }
 
 // the "application"
 function App() {
@@ -164,9 +137,7 @@ function App() {
           return getState("quotes", quoteId).description.length
         }
       }}
-      logger={({ type, action, ...info }) =>
-        console.log(type, action, info)
-      }
+      middleware={[consoleLogger]}
     >
       <ErrorBoundary fallback={ErrorMessage}>
         <Suspense fallback={<p>Loading...</p>}>
