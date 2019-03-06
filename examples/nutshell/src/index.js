@@ -1,14 +1,9 @@
 import React, { Suspense } from "react"
 import ReactDOM from "react-dom"
-import createStore, { consoleLogger } from "./react-evoke"
+import createStore, { consoleLogger } from "react-evoke"
 import quotes from "../node_modules/pragmatic-motd/data/quotes.json"
 
-import "core-js/es6/object"
-import "core-js/es6/promise"
-
 const { Store, useStore, ErrorBoundary } = createStore()
-// // Experimental Hooks Alternative for React 16.7.0-alpha:
-// const { Store, ErrorBoundary, useStore } = createStore();
 
 const MAX_QUOTE_ID = quotes.length
 

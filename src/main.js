@@ -128,7 +128,7 @@ const createStore = defaultProps => {
       if (process.env.NODE_ENV !== "production")
         if (Object.keys(this._pendingInitializations).length) {
           console.error(
-            "Store unmounted during initialization. It must have a Suspense component below it."
+            "Store unmounted during initialization. Its subtree might be missing a Suspense or an ErrorBoundary component."
           )
         }
     }

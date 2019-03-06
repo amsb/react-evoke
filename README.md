@@ -64,7 +64,7 @@ The `Store` *component* holds shared application **state** and a registry of **a
 
 ```javascript
 import createStore from "react-evoke";
-const { Store, UseState } = createStore();
+const { Store, UseStore } = createStore();
 
 ReactDOM.render(
   <Store
@@ -113,7 +113,7 @@ To keep your code organized, you might want to define your actions in a separate
 
 ```javascript
 import createStore from "react-evoke";
-const { Store, UseState } = createStore();
+const { Store, UseStore } = createStore();
 import * as actions from "./actions"
 
 ReactDOM.render(
@@ -147,7 +147,7 @@ The `UseStore` component uses the function-as-a-child render prop pattern. The a
 
 #### useStore Hook
 
-The same functionality that the `UseStore` component provides is also provided through the `useStore` hook for React 16.8+. The `useStore` hook takes the same two arguments as the `UseState` component: a state key `name` and an *optional* `item` sub-key. Here's what the above example looks like as a hook:
+The same functionality that the `UseStore` component provides is also provided through the `useStore` hook for React 16.8+. The `useStore` hook takes the same two arguments as the `UseStore` component: a state key `name` and an *optional* `item` sub-key. Here's what the above example looks like as a hook:
 
 ```javascript
 function QuoteView({ quoteId }) {
@@ -186,7 +186,7 @@ To use this feature, you will also need to insert at least one [`Suspense`](http
 
 ```javascript
 import createStore from "react-evoke";
-const { Store, UseState } = createStore();
+const { Store, UseStore } = createStore();
 import actions from "./actions"
 
 ReactDOM.render(
