@@ -1,3 +1,6 @@
+# Evoke
+Straightforward action-driven state management for straightforward apps. 
+
 <div align="center">
   <br><br>
   <img src="https://raw.githubusercontent.com/amsb/react-evoke/master/logo.png" alt="Evoke" width="400">
@@ -5,9 +8,7 @@
   <br><br>
 </div>
 
-# Evoke
-
-Straightforward action-driven state management for straightforward apps. Built on React [Suspense](https://www.youtube.com/watch?v=6g3g0Q_XVb4) and [Immer](https://github.com/mweststrate/immer), Evoke provides a simple framework for dispatching asynchronous state updating actions and accessing that state throughout the application. It is a lightweight library for shared application state management in the spirit of Command Query Responsibility Segregation (CQRS), flux, redux, etc.
+Built on React [Suspense](https://www.youtube.com/watch?v=6g3g0Q_XVb4) and [Immer](https://github.com/mweststrate/immer), Evoke provides a simple framework for dispatching asynchronous state updating actions and accessing that state throughout the application. It is a lightweight library for shared application state management in the spirit of Command Query Responsibility Segregation (CQRS), flux, redux, etc.
 
 ## Overview
 
