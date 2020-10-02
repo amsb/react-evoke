@@ -1,6 +1,6 @@
 {
   "name": "react-evoke",
-  "version": "0.11.1",
+  "version": "1.0.0",
   "author": "Alexander M. Sauer-Budge",
   "license": "MIT",
   "repository": {
@@ -16,23 +16,23 @@
   "module": "dist/react-evoke.esm.js",
   "browser": "dist/react-evoke.umd.js",
   "dependencies": {
-    "immer": "^5.0.0",
+    "immer": "^7.0.9",
     "prop-types": "^15.7.2",
-    "react": "^16.11.0"
+    "react": "^16.13.1"
   },
   "devDependencies": {
-    "@babel/core": "^7.7.2",
-    "@babel/plugin-proposal-class-properties": "^7.7.0",
-    "@babel/plugin-proposal-object-rest-spread": "^7.6.2",
-    "@babel/preset-env": "^7.7.1",
-    "@babel/preset-react": "^7.7.0",
-    "rollup": "^1.27.0",
-    "rollup-plugin-babel": "^4.3.3",
+    "@babel/core": "^7.11.6",
+    "@babel/plugin-proposal-class-properties": "^7.10.4",
+    "@babel/plugin-proposal-object-rest-spread": "^7.11.0",
+    "@babel/preset-env": "^7.11.5",
+    "@babel/preset-react": "^7.10.4",
+    "rollup": "^2.28.2",
+    "rollup-plugin-babel": "^4.4.0",
     "rollup-plugin-commonjs": "^10.1.0",
     "rollup-plugin-node-resolve": "^5.2.0"
   },
   "peerDependencies": {
-    "react": "^16.5.3"
+    "react": "^16.13.1"
   },
   "scripts": {
     "build": "NODE_ENV=production rollup -c",
