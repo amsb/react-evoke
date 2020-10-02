@@ -1,8 +1,7 @@
-import React, { Suspense } from "react";
-import ReactDOM from "react-dom";
-// import createStore, { consoleLogger } from "./main";
-import createStore, { consoleLogger } from "react-evoke";
-import quotes from "./quotes";
+import React, { Suspense } from "react"
+import ReactDOM from "react-dom"
+import createStore, { consoleLogger } from "react-evoke"
+import quotes from "./quotes"
 
 const { Store, useStore, ErrorBoundary } = createStore();
 
@@ -22,7 +21,7 @@ function fetchQuote(quoteId) {
 
 // define an action to load quote data
 async function loadQuote(store, quoteId) {
-  const quote = await fetchQuote(quoteId);
+  const quote = await fetchQuote(quoteId)
   await store.update((state) => {
     if (!state.quotes) {
       state.quotes = {};
@@ -35,7 +34,7 @@ async function loadQuote(store, quoteId) {
 // define action the move to next quote
 async function nextQuote(store) {
   await store.update((state) => {
-    state.quoteId = state.quoteId + 1;
+    state.quoteId = state.quoteId + 1
     if (state.quoteId >= MAX_QUOTE_ID) {
       state.quoteId = 1;
     }
@@ -45,7 +44,7 @@ async function nextQuote(store) {
 // define action the move to previous quote
 async function prevQuote(store) {
   await store.update((state) => {
-    state.quoteId = state.quoteId - 1;
+    state.quoteId = state.quoteId - 1
     if (state.quoteId <= 0) {
       state.quoteId = MAX_QUOTE_ID;
     }
@@ -129,7 +128,7 @@ function App() {
       }}
       derivedState={{
         quoteLengths: (getState, quoteId) => {
-          return getState("quotes", quoteId).description.length;
+          return getState("quotes", quoteId).description.length
         },
       }}
       middleware={[consoleLogger]}

@@ -343,6 +343,6 @@ const quotes = [
     description:
       "Craftsmen of an earlier age were proud to sign their work. You should be, too.",
   },
-];
+]
 
-export default quotes;
+export default quotes

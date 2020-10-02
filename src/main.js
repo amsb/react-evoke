@@ -1,6 +1,8 @@
 import React from "react"
 import PropTypes from "prop-types"
-import produce from "immer"
+import produce, { enablePatches } from "immer"
+
+enablePatches()
 
 function isPromise(obj) {
   return (
@@ -25,14 +27,14 @@ const shallowEqual = (obj1, obj2) => {
   const keys = Object.keys(obj1)
   return (
     keys.length === Object.keys(obj2).length &&
-    keys.every(key => obj1[key] === obj2[key])
+    keys.every((key) => obj1[key] === obj2[key])
   )
 }
 
 function memoizeDeriver(select, derive) {
   let lastState = null
   let lastValue = null
-  return function(getState, item) {
+  return function (getState, item) {
     const state = select(getState, item)
     if (!(lastState && shallowEqual(state, lastState))) {
       lastValue = derive(state)
@@ -42,7 +44,7 @@ function memoizeDeriver(select, derive) {
   }
 }
 
-const createStore = defaultProps => {
+const createStore = (defaultProps) => {
   let NAME_COUNT = 0
   const NAME_BITS = {}
 
@@ -82,7 +84,7 @@ const createStore = defaultProps => {
       setup: PropTypes.string,
       teardown: PropTypes.string,
       middleware: PropTypes.arrayOf(PropTypes.func),
-      meta: PropTypes.object
+      meta: PropTypes.object,
     }
 
     static defaultProps = defaultProps
@@ -135,8 +137,8 @@ const createStore = defaultProps => {
 
     componentDidUpdate() {
       // clear pending initializations if resolved after Store update
-      Object.keys(this._pendingInitializations).forEach(name => {
-        Object.keys(this._pendingInitializations[name]).forEach(item => {
+      Object.keys(this._pendingInitializations).forEach((name) => {
+        Object.keys(this._pendingInitializations[name]).forEach((item) => {
           if (this._pendingInitializations[name][item] === true) {
             // only delete successfully resolved promises, leave
             // pending promises and errors
@@ -149,8 +151,8 @@ const createStore = defaultProps => {
       })
     }
 
-    register = actions => {
-      Object.keys(actions).forEach(actionName => {
+    register = (actions) => {
+      Object.keys(actions).forEach((actionName) => {
         const action = actions[actionName]
         if (!this.registry.hasOwnProperty(actionName)) {
           this.registry[actionName] = new Set()
@@ -169,14 +171,14 @@ const createStore = defaultProps => {
           update: this.update,
           getState: this.getState,
           actions: this.actions,
-          meta: this.meta
+          meta: this.meta,
         }
 
         // pass along related information for logging etc.
         const info = {
           actionName,
           dispatchId,
-          ...extraInfo
+          ...extraInfo,
         }
 
         // create an function to execute all handlers registered
@@ -187,21 +189,21 @@ const createStore = defaultProps => {
             handler // Set.forEach for IE11
           ) => promises.push(handler(store, ...payload)))
           return Promise.all(promises)
-            .then(values =>
+            .then((values) =>
               Object.assign(
                 Object.defineProperty({}, "dispatchId", {
                   value: dispatchId,
-                  enumerable: false
+                  enumerable: false,
                 }),
-                ...values.map(v => v || {})
+                ...values.map((v) => v || {})
               )
             )
-            .catch(error => {
+            .catch((error) => {
               if (error) {
                 if (!error.hasOwnProperty("dispatchId")) {
                   Object.defineProperty(error, "dispatchId", {
                     value: dispatchId,
-                    enumerable: false
+                    enumerable: false,
                   })
                 }
               }
@@ -250,8 +252,8 @@ const createStore = defaultProps => {
       }
     }
 
-    registerDerivedState = derivedState => {
-      Object.keys(derivedState).forEach(name => {
+    registerDerivedState = (derivedState) => {
+      Object.keys(derivedState).forEach((name) => {
         const deriver = derivedState[name]
         if (Array.isArray(deriver)) {
           this.derivedState[name] = memoizeDeriver(...deriver)
@@ -344,7 +346,7 @@ const createStore = defaultProps => {
         // OR it resolved without error and state still uninitialized
         // warning: we may not want to be this lenient but it can be helpful
         // for signaling that a retry is worthwhile
-        const promise = new Promise(resolve =>
+        const promise = new Promise((resolve) =>
           // avoid updating state during existing state transition by deferring dispatch
           // until after promise is thrown and the calling render function exits.
           // https://developer.mozilla.org/en-US/docs/Web/JavaScript/EventLoop#Zero_delays
@@ -359,14 +361,14 @@ const createStore = defaultProps => {
                 console.error(
                   `Initializer ${actionName} didn't initialize ${name}]!`
                 )
-                this.setState(prevState => ({ ...prevState, [name]: {} }))
+                this.setState((prevState) => ({ ...prevState, [name]: {} }))
               } else {
                 console.error(
                   `Initializer ${actionName}(${item}) didn't initialize ${name}[${item}]!`
                 )
-                this.setState(prevState => ({
+                this.setState((prevState) => ({
                   ...prevState,
-                  [name]: { ...(prevState[name] || {}), [item]: {} }
+                  [name]: { ...(prevState[name] || {}), [item]: {} },
                 }))
               }
             }
@@ -377,10 +379,10 @@ const createStore = defaultProps => {
 
         // suspend render and update cache when resolved
         throw promise.then(
-          value => {
+          (value) => {
             cache[cacheKeyForItem] = true
           },
-          error => {
+          (error) => {
             cache[cacheKeyForItem] = error
           }
         )
@@ -397,7 +399,7 @@ const createStore = defaultProps => {
           if (!value.hasOwnProperty("isInitializer")) {
             value = Object.defineProperty(value, "isInitializer", {
               value: true,
-              enumerable: false
+              enumerable: false,
             })
           }
           const clear = () => {
@@ -407,7 +409,7 @@ const createStore = defaultProps => {
             value = Object.defineProperty(value, "clear", {
               value: clear,
               writable: true,
-              enumerable: false
+              enumerable: false,
             })
           } else {
             value.clear = clear
@@ -417,16 +419,16 @@ const createStore = defaultProps => {
       }
     }
 
-    update = mutator =>
+    update = (mutator) =>
       // use immer copy-on-write (mutate draft) semantics to update current state
-      new Promise(resolve => {
+      new Promise((resolve) => {
         let changes = []
         let reverts = []
         this.setState(
-          prevState => {
+          (prevState) => {
             let nextState = produce(
               prevState,
-              draftState => mutator(draftState),
+              (draftState) => mutator(draftState),
               (p, r) => {
                 changes.push(...p)
                 reverts.push(...r)
@@ -437,7 +439,7 @@ const createStore = defaultProps => {
           () =>
             resolve({
               changes,
-              reverts
+              reverts,
             })
         )
       })
@@ -449,7 +451,7 @@ const createStore = defaultProps => {
             state: this.state,
             actions: this.actions,
             register: this.register,
-            read: this.read
+            read: this.read,
           }}
         >
           {this.props.children}
@@ -462,7 +464,7 @@ const createStore = defaultProps => {
     static propTypes = {
       fallback: PropTypes.func.isRequired,
       onError: PropTypes.func,
-      errorType: PropTypes.object
+      errorType: PropTypes.object,
     }
 
     state = { error: null }
@@ -494,12 +496,12 @@ const createStore = defaultProps => {
         ) {
           return (
             <StoreContext.Consumer>
-              {store =>
+              {(store) =>
                 this.props.fallback({
                   error: this.state.error,
                   state: store.state,
                   actions: store.actions,
-                  clearError: this.clearError
+                  clearError: this.clearError,
                 })
               }
             </StoreContext.Consumer>
@@ -520,8 +522,8 @@ const createStore = defaultProps => {
         PropTypes.string,
         PropTypes.number,
         PropTypes.bool,
-        PropTypes.symbol
-      ])
+        PropTypes.symbol,
+      ]),
     }
 
     render() {
@@ -533,7 +535,7 @@ const createStore = defaultProps => {
               : 0
           }
         >
-          {store =>
+          {(store) =>
             this.props.name
               ? this.props.children(
                   store.read(this.props.name, this.props.item),
@@ -549,7 +551,7 @@ const createStore = defaultProps => {
   const exports = {
     Store,
     ErrorBoundary,
-    UseStore
+    UseStore,
   }
 
   if (React.useContext) {
@@ -601,7 +603,7 @@ function logToConsole(
         "color: blue;",
         "color: black"
       )
-      payload.forEach(arg => arg != null && console.log(arg))
+      payload.forEach((arg) => arg != null && console.log(arg))
       console.groupEnd()
       break
     case "executed":
@@ -620,7 +622,7 @@ function logToConsole(
         "color: blue;",
         "color: black"
       )
-      changes.forEach(patch => {
+      changes.forEach((patch) => {
         if (patch.path.length > 1) {
           console.groupCollapsed(
             `%c${patch.op} %c${patch.path.slice(0, patch.path.length - 1)}%c["${
@@ -672,26 +674,26 @@ export const consoleLogger = (
       dispatchId,
       actionName,
       payload,
-      initializing
+      initializing,
     })
   }
   const loggingStore = {
     ...store,
-    update: mutator =>
-      store.update(mutator).then(updateInfo => {
+    update: (mutator) =>
+      store.update(mutator).then((updateInfo) => {
         logToConsole("update", {
           dispatchId,
           actionName,
           payload,
-          ...updateInfo
+          ...updateInfo,
         })
         return updateInfo
-      })
+      }),
   }
   logToConsole("dispatch", {
     dispatchId,
     actionName,
-    payload
+    payload,
   })
   try {
     const result = await action(loggingStore, ...payload)
@@ -699,7 +701,7 @@ export const consoleLogger = (
       dispatchId,
       actionName,
       payload,
-      result: result || {}
+      result: result || {},
     })
     return result
   } catch (error) {
@@ -707,7 +709,7 @@ export const consoleLogger = (
       dispatchId,
       actionName,
       payload,
-      error
+      error,
     })
     throw error
   }
