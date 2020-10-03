@@ -50,11 +50,11 @@ const createStore = (defaultProps) => {
 
   // calculate changed bits for StoreContext, whose value is
   // { state, actions, register, read }
-  function getChangedBits({ state: prevState }, { state: nextState }) {
+  function calculateChangedBits({ state: prevState }, { state: nextState }) {
     let mask = 0
     for (let id in nextState) {
       if (prevState[id] !== nextState[id]) {
-        mask |= NAME_BITS[id]
+        mask |= getObservedBits(id)
       }
     }
     return mask
@@ -72,7 +72,7 @@ const createStore = (defaultProps) => {
   }
 
   // create context for sharing THIS store
-  const StoreContext = React.createContext({}, getChangedBits)
+  const StoreContext = React.createContext(undefined, calculateChangedBits)
 
   // Store component
   class Store extends React.Component {
@@ -97,9 +97,19 @@ const createStore = (defaultProps) => {
       this.register(props.actions)
 
       if (props.initialState) {
-        this.state = { ...props.initialState }
+        this.state = {
+          state: { ...props.initialState },
+          actions: this.actions,
+          register: this.register,
+          read: this.read,
+        }
       } else {
-        this.state = {}
+        this.state = {
+          state: {},
+          actions: this.actions,
+          register: this.register,
+          read: this.read,
+        }
       }
 
       this.derivedState = {}
@@ -239,16 +249,16 @@ const createStore = (defaultProps) => {
       // react-cache when it supports invalidation).
       if (name) {
         if (item) {
-          if (this.state.hasOwnProperty(name)) {
-            return this.state[name][item]
+          if (this.state.state.hasOwnProperty(name)) {
+            return this.state.state[name][item]
           } else {
             return undefined
           }
         } else {
-          return this.state[name]
+          return this.state.state[name]
         }
       } else {
-        return this.state
+        return this.state.state
       }
     }
 
@@ -267,15 +277,15 @@ const createStore = (defaultProps) => {
     read = (name, item = ALL_ITEMS) => {
       // short-circuit return when already initialized
       if (
-        this.state.hasOwnProperty(name) &&
-        this.state[name] != UNINITIALIZED // eslint-disable-line eqeqeq
+        this.state.state.hasOwnProperty(name) &&
+        this.state.state[name] != UNINITIALIZED // eslint-disable-line eqeqeq
       ) {
         if (item === ALL_ITEMS) {
-          return this.state[name]
-        } else if (this.state[name].hasOwnProperty(item)) {
-          return this.state[name][item]
+          return this.state.state[name]
+        } else if (this.state.state[name].hasOwnProperty(item)) {
+          return this.state.state[name][item]
         }
-        // otherwise this.state[name][item] isn't initialized
+        // otherwise this.state.state[name][item] isn't initialized
       }
 
       // value isn't in store, check for derived state
@@ -339,8 +349,8 @@ const createStore = (defaultProps) => {
       if (
         value === undefined ||
         (value === true &&
-          (!this.state.hasOwnProperty(name) ||
-            this.state[name] == UNINITIALIZED)) // eslint-disable-line eqeqeq
+          (!this.state.state.hasOwnProperty(name) ||
+            this.state.state[name] == UNINITIALIZED)) // eslint-disable-line eqeqeq
       ) {
         // if there is no pending cache entry for this item
         // OR it resolved without error and state still uninitialized
@@ -355,7 +365,7 @@ const createStore = (defaultProps) => {
           .then(() => this.dispatch(actionName, [item], { initializing: name }))
           .then(() => {
             // eslint-disable-next-line eqeqeq
-            if (this.state[name] == UNINITIALIZED) {
+            if (this.state.state[name] == UNINITIALIZED) {
               // prevent infinite loop with faulty initializer
               if (item === ALL_ITEMS) {
                 console.error(
@@ -428,7 +438,7 @@ const createStore = (defaultProps) => {
           (prevState) => {
             let nextState = produce(
               prevState,
-              (draftState) => mutator(draftState),
+              (draftState) => mutator(draftState.state),
               (p, r) => {
                 changes.push(...p)
                 reverts.push(...r)
@@ -446,14 +456,7 @@ const createStore = (defaultProps) => {
 
     render() {
       return (
-        <StoreContext.Provider
-          value={{
-            state: this.state,
-            actions: this.actions,
-            register: this.register,
-            read: this.read,
-          }}
-        >
+        <StoreContext.Provider value={this.state}>
           {this.props.children}
         </StoreContext.Provider>
       )
@@ -529,11 +532,11 @@ const createStore = (defaultProps) => {
     render() {
       return (
         <StoreContext.Consumer
-          observedBits={
-            this.props.name
-              ? getObservedBits(this.props.name, this.props.item)
-              : 0
-          }
+        // observedBits={
+        //   this.props.name
+        //     ? getObservedBits(this.props.name, this.props.item)
+        //     : 0
+        // }
         >
           {(store) =>
             this.props.name
@@ -556,19 +559,8 @@ const createStore = (defaultProps) => {
 
   if (React.useContext) {
     function useStore(name, item) {
-      // jump through an ugly hoop to avoid warning about using
-      // observedBits argument with Context hook as we wait for
-      // react to provide a better solution to selective Context
-      // updates. if this ever gives trouble, just don't use
-      // observedBits as it just provides an optimization and
-      // isn't strictly required
-      const dispatcher =
-        React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED
-          .ReactCurrentDispatcher.current
-      const store = dispatcher.useContext(
-        StoreContext,
-        name ? getObservedBits(name, item) : 0
-      )
+      const store = React.useContext(StoreContext)
+
       if (name) {
         return [store.read(name, item), store.actions]
       } else {
