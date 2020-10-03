@@ -8,7 +8,7 @@
   "dependencies": {
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
-    "react-evoke": "^0.11.1"
+    "react-evoke": "^1.0.1"
   },
   "scripts": {
     "start": "react-scripts start",
