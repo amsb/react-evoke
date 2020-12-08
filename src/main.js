@@ -14,6 +14,7 @@ function isPromise(obj) {
 
 const ALL_ITEMS = undefined
 const UNINITIALIZED = null
+const MAX_SIGNED_31_BIT_INT = Math.pow(2, 30) - 1 // 0b111111111111111111111111111111
 
 class UninitializedError extends Error {
   constructor(name, item) {
@@ -66,7 +67,7 @@ const createStore = (defaultProps) => {
     if (NAME_BITS.hasOwnProperty(name)) {
       return NAME_BITS[name]
     } else {
-      const bits = 1 << NAME_COUNT++
+      const bits = 1 << (NAME_COUNT++ % 30)
       return (NAME_BITS[name] = bits)
     }
   }
@@ -270,7 +271,7 @@ const createStore = (defaultProps) => {
         } else {
           this.derivedState[name] = deriver
         }
-        NAME_BITS[name] = 1073741823 // dependent on everything until first executed
+        NAME_BITS[name] = MAX_SIGNED_31_BIT_INT // dependent on everything until first executed
       })
     }
 

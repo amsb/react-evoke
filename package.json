@@ -1,6 +1,6 @@
 {
   "name": "react-evoke",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "author": "Alexander M. Sauer-Budge",
   "license": "MIT",
   "repository": {
@@ -16,16 +16,16 @@
   "module": "dist/react-evoke.esm.js",
   "browser": "dist/react-evoke.umd.js",
   "dependencies": {
-    "immer": "^7.0.9",
+    "immer": "^7.0.15",
     "prop-types": "^15.7.2"
   },
   "devDependencies": {
-    "@babel/core": "^7.11.6",
-    "@babel/plugin-proposal-class-properties": "^7.10.4",
-    "@babel/plugin-proposal-object-rest-spread": "^7.11.0",
-    "@babel/preset-env": "^7.11.5",
-    "@babel/preset-react": "^7.10.4",
-    "rollup": "^2.28.2",
+    "@babel/core": "^7.12.9",
+    "@babel/plugin-proposal-class-properties": "^7.12.1",
+    "@babel/plugin-proposal-object-rest-spread": "^7.12.1",
+    "@babel/preset-env": "^7.12.7",
+    "@babel/preset-react": "^7.12.7",
+    "rollup": "^2.34.2",
     "rollup-plugin-babel": "^4.4.0",
     "rollup-plugin-commonjs": "^10.1.0",
     "rollup-plugin-node-resolve": "^5.2.0"
