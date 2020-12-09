@@ -1,6 +1,6 @@
 import React from "react"
 import PropTypes from "prop-types"
-import produce, { enablePatches } from "immer"
+import produce, { enablePatches, enableES5 } from "immer"
 
 enablePatches()
 
@@ -67,7 +67,7 @@ const createStore = (defaultProps) => {
     if (NAME_BITS.hasOwnProperty(name)) {
       return NAME_BITS[name]
     } else {
-      const bits = 1 << (NAME_COUNT++ % 30)
+      const bits = 1 << NAME_COUNT++ % 30
       return (NAME_BITS[name] = bits)
     }
   }
@@ -435,6 +435,7 @@ const createStore = (defaultProps) => {
       new Promise((resolve) => {
         let changes = []
         let reverts = []
+        enableES5()
         this.setState(
           (prevState) => {
             let nextState = produce(
