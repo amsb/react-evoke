@@ -1,6 +1,6 @@
 {
   "name": "react-evoke",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "author": "Alexander M. Sauer-Budge",
   "license": "MIT",
   "repository": {
@@ -16,7 +16,7 @@
   "module": "dist/react-evoke.esm.js",
   "browser": "dist/react-evoke.umd.js",
   "dependencies": {
-    "immer": "^7.0.15",
+    "immer": "^8.0.1",
     "prop-types": "^15.7.2"
   },
   "devDependencies": {
