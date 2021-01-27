@@ -138,15 +138,20 @@ const createStore = (defaultProps) => {
       }
       // alert developer of an unmount during a pending initialization so they can
       // add the missing Suspense component
-      if (process.env.NODE_ENV !== "production")
-        if (Object.keys(this._pendingInitializations).length) {
-          console.error(
-            "Store unmounted during initialization. Its subtree might be missing a Suspense or an ErrorBoundary component."
-          )
-        }
+      const hasPendingInitialization = this.clearResolvedInitializations()
+      if (hasPendingInitialization && process.env.NODE_ENV !== "production") {
+        console.error(
+          "Store unmounted during initialization. Its subtree might be missing a Suspense or an ErrorBoundary component."
+        )
+      }
     }
 
     componentDidUpdate() {
+      this.clearResolvedInitializations()
+    }
+
+    clearResolvedInitializations = () => {
+      let hasPending = false
       // clear pending initializations if resolved after Store update
       Object.keys(this._pendingInitializations).forEach((name) => {
         Object.keys(this._pendingInitializations[name]).forEach((item) => {
@@ -157,9 +162,12 @@ const createStore = (defaultProps) => {
             if (!Object.keys(this._pendingInitializations[name]).length) {
               delete this._pendingInitializations[name]
             }
+          } else {
+            hasPending = true
           }
         })
       })
+      return hasPending
     }
 
     register = (actions) => {
@@ -562,7 +570,6 @@ const createStore = (defaultProps) => {
   if (React.useContext) {
     function useStore(name, item) {
       const store = React.useContext(StoreContext)
-
       if (name) {
         return [store.read(name, item), store.actions]
       } else {

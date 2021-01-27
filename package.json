@@ -17,14 +17,20 @@
   "browser": "dist/react-evoke.umd.js",
   "dependencies": {
     "immer": "^8.0.1",
-    "prop-types": "^15.7.2"
+    "prop-types": "^15.7.2",
+    "react": "^17.0.1"
   },
   "devDependencies": {
     "@babel/core": "^7.12.9",
     "@babel/plugin-proposal-class-properties": "^7.12.1",
     "@babel/plugin-proposal-object-rest-spread": "^7.12.1",
-    "@babel/preset-env": "^7.12.7",
-    "@babel/preset-react": "^7.12.7",
+    "@babel/plugin-transform-runtime": "^7.12.10",
+    "@babel/preset-env": "^7.12.11",
+    "@babel/preset-react": "^7.12.10",
+    "@testing-library/react-hooks": "^5.0.0",
+    "babel-plugin-transform-class-properties": "^6.24.1",
+    "jest": "^26.6.3",
+    "react-test-renderer": "^17.0.1",
     "rollup": "^2.34.2",
     "rollup-plugin-babel": "^4.4.0",
     "rollup-plugin-commonjs": "^10.1.0",
@@ -34,13 +40,23 @@
     "react": "^16.13.1"
   },
   "scripts": {
-    "build": "NODE_ENV=production && rollup -c",
+    "build": "NODE_ENV=production rollup -c",
     "prepare": "npm run build",
     "dev": "rollup -c -w",
-    "test": "node test/test.js",
-    "pretest": "npm run build"
+    "test": "NODE_ENV=test jest"
   },
   "files": [
     "dist"
-  ]
+  ],
+  "jest": {
+    "roots": [
+      "<rootDir>"
+    ],
+    "modulePaths": [
+      "<rootDir>"
+    ],
+    "moduleDirectories": [
+      "node_modules"
+    ]
+  }
 }
