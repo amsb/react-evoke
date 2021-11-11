@@ -1,6 +1,6 @@
 import React, { Suspense } from "react"
 import ReactDOM from "react-dom"
-import createStore, { consoleLogger } from "react-evoke"
+import createStore, { consoleLogger } from "./react-evoke"
 import quotes from "./quotes"
 
 const { Store, useStore, ErrorBoundary } = createStore()
