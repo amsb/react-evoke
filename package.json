@@ -16,7 +16,7 @@
   "module": "dist/react-evoke.esm.js",
   "browser": "dist/react-evoke.umd.js",
   "dependencies": {
-    "immer": "^8.0.1",
+    "immer": "^9.0.6",
     "prop-types": "^15.7.2"
   },
   "devDependencies": {
